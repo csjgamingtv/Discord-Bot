@@ -1,6 +1,7 @@
 // Dependencies
 const fs = require('fs'),
 	{ Embed } = require('../../utils'),
+	{ PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +18,7 @@ class Fact extends Command {
 			name: 'fact',
 			dirname: __dirname,
 			aliases: ['facts'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Receive a random fact.',
 			usage: 'fact',
 			slash: true,
@@ -37,7 +38,7 @@ class Fact extends Command {
 			if (err) {
 				if (message.deletable) message.delete();
 				bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-				return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+				return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 			}
 
 			// Retrieve a random fact

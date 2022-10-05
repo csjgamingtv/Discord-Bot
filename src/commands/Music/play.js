@@ -1,5 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +18,7 @@ class Play extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['p'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'CONNECT', 'SPEAK'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.Connect, Flags.Speak],
 			description: 'Play a song.',
 			usage: 'play <link / song name>',
 			cooldown: 3000,
@@ -26,9 +27,15 @@ class Play extends Command {
 			options: [{
 				name: 'track',
 				description: 'The link or name of the track.',
-				type: 'STRING',
+				type: ApplicationCommandOptionType.String,
 				required: true,
 				autocomplete: true,
+			},
+			{
+				name: 'flag',
+				description: '(R)andom, (S)huffle or (N)ext to queue',
+				type: ApplicationCommandOptionType.String,
+				choices: ['-r', '-n', '-s'].map(i => ({ name: i, value: i })),
 			}],
 		});
 	}
@@ -41,22 +48,22 @@ class Play extends Command {
   */
 	async run(bot, message, settings) {
 		// make sure user is in a voice channel
-		if (!message.member.voice.channel) return message.channel.error('music/play:NOT_VC').then(m => m.timedDelete({ timeout: 10000 }));
+		if (!message.member.voice.channel) return message.channel.error('music/play:NOT_VC');
 
 		// Check that user is in the same voice channel
 		if (bot.manager?.players.get(message.guild.id)) {
-			if (message.member.voice.channel.id != bot.manager?.players.get(message.guild.id).voiceChannel) return message.channel.error('misc:NOT_VOICE').then(m => m.timedDelete({ timeout: 10000 }));
+			if (message.member.voice.channel.id != bot.manager?.players.get(message.guild.id).voiceChannel) return message.channel.error('misc:NOT_VOICE');
 		}
 
-		// Check if VC is full and bot can't join doesn't have (MANAGE_CHANNELS)
-		if (message.member.voice.channel.full && !message.member.voice.channel.permissionsFor(message.guild.me).has('MOVE_MEMBERS')) {
-			return message.channel.error('music/play:VC_FULL').then(m => m.timedDelete({ timeout: 10000 }));
+		// Check if VC is full and bot can't join doesn't have (Flags.ManageChannels)
+		if (message.member.voice.channel.full && !message.member.voice.channel.permissionsFor(message.guild.members.me).has(Flags.MoveMembers)) {
+			return message.channel.error('music/play:VC_FULL');
 		}
 
 		// Check if the member has role to interact with music plugin
 		if (message.guild.roles.cache.get(settings.MusicDJRole)) {
 			if (!message.member.roles.cache.has(settings.MusicDJRole)) {
-				return message.channel.error('misc:MISSING_ROLE').then(m => m.timedDelete({ timeout: 10000 }));
+				return message.channel.error('misc:MISSING_ROLE');
 			}
 		}
 
@@ -72,7 +79,7 @@ class Play extends Command {
 		} catch (err) {
 			if (message.deletable) message.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 10000 }));
+			return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 		}
 
 		// Make sure something was entered
@@ -82,7 +89,7 @@ class Play extends Command {
 			if (message.attachments.size > 0) {
 				const url = message.attachments.first().url;
 				for (const type of fileTypes) {
-					if (url.endsWith(fileTypes[type])) message.args.push(url);
+					if (url.endsWith(type)) message.args.push(url);
 				}
 				if (!message.args[0]) return message.channel.error('music/play:INVALID_FILE').then(m => m.timedDelete({ timeout: 10000 }));
 			} else {
@@ -149,6 +156,7 @@ class Play extends Command {
 	async callback(bot, interaction, guild, args) {
 		const channel = guild.channels.cache.get(interaction.channelId),
 			member = guild.members.cache.get(interaction.user.id),
+			flag = args.get('flag')?.value,
 			search = args.get('track').value;
 
 		// make sure user is in a voice channel
@@ -204,15 +212,41 @@ class Play extends Command {
 				.setColor(member.displayHexColor)
 				.setDescription(bot.translate('music/play:QUEUED', { NUM: res.tracks.length }));
 
-			// Add songs to queue and then play the song(s) if not already
-			player.queue.add(res.tracks);
-			if (!player.playing && !player.paused && player.queue.totalSize === res.tracks.length) player.play();
+			// Add songs to queue depending on flag (if any)
+			switch (flag) {
+				case '-r':
+					// Reverse the added tracks
+					player.queue.add(res.tracks.reverse());
+					break;
+				case '-n':
+					// Add the tracks to the front of the queue
+					player.queue.unshift(...res.tracks);
+					break;
+				case '-s':
+					// Shuffle the added songs
+					player.queue.add(res.tracks.sort(() => Math.random() - 0.5));
+					break;
+				default:
+					player.queue.add(res.tracks);
+			}
 
+			// Play the tracks
+			if (!player.playing && !player.paused && player.queue.totalSize === res.tracks.length) player.play();
 			return interaction.reply({ embeds: [embed] });
 		} else {
 			// add track to queue and play
 			if (player.state !== 'CONNECTED') player.connect();
-			player.queue.add(res.tracks[0]);
+
+			// Add songs to queue depending on flag (if any)
+			switch (flag) {
+				case '-n':
+					// Add the tracks to the front of the queue
+					player.queue.unshift(res.tracks[0]);
+					break;
+				default:
+					player.queue.add(res.tracks[0]);
+			}
+
 			if (!player.playing && !player.paused && !player.queue.size) {
 				player.play();
 				return interaction.reply({ content: 'Successfully started queue.' });

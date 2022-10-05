@@ -1,5 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
+	{ PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,8 +18,8 @@ class SetPlugin extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['setplugin'],
-			userPermissions: ['MANAGE_GUILD'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS'],
+			userPermissions: [Flags.ManageGuild],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Toggle plugins on and off',
 			usage: 'set-plugin <option>',
 			cooldown: 5000,
@@ -94,10 +95,10 @@ class SetPlugin extends Command {
 				await message.guild.updateGuild({ plugins: settings.plugins });
 			} catch (err) {
 				bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-				message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+				message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 			}
 		} else {
-			return message.channel.send(message.translate('plugins/set-plugin:INVALID'));
+			return message.channel.error('plugins/set-plugin:INVALID');
 		}
 	}
 }

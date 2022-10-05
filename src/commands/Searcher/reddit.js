@@ -1,5 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -15,7 +16,7 @@ class Reddit extends Command {
 		super(bot, {
 			name: 'reddit',
 			dirname: __dirname,
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Send a random image from a chosen subreddit.',
 			usage: 'reddit <subreddit>',
 			cooldown: 3000,
@@ -24,8 +25,14 @@ class Reddit extends Command {
 			options: [{
 				name: 'subreddit',
 				description: 'Name of subreddit.',
-				type: 'STRING',
+				type: ApplicationCommandOptionType.String,
 				required: true,
+			},
+			{
+				name: 'flag',
+				description: '(H)ot, (N)ew or (T)op',
+				type: ApplicationCommandOptionType.String,
+				choices: ['-h', '-n', '-t'].map(i => ({ name: i, value: i })),
 			}],
 		});
 	}
@@ -39,7 +46,7 @@ class Reddit extends Command {
 	*/
 	async run(bot, message, settings) {
 		// Get subreddit
-		if (!message.args[0])	return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('searcher/reddit:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (!message.args[0])	return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('searcher/reddit:USAGE')) });
 
 		// send 'waiting' message to show bot has recieved message
 		const msg = await message.channel.send(message.translate('misc:FETCHING', {
@@ -54,7 +61,7 @@ class Reddit extends Command {
 			if (message.deletable) message.delete();
 			msg.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+			return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 		}
 	}
 
@@ -68,11 +75,24 @@ class Reddit extends Command {
 	*/
 	async callback(bot, interaction, guild, args) {
 		const channel = guild.channels.cache.get(interaction.channelId),
-			subreddit = args.get('subreddit').value;
+			subreddit = args.get('subreddit').value,
+			flag = args.get('flag')?.value;
 
+		let type;
+		switch (flag) {
+			case '-h':
+				type = 'hot';
+				break;
+			case '-n':
+				type = 'new';
+				break;
+			case '-t':
+				type = 'top';
+				break;
+		}
 		// send subreddit post
 		try {
-			const resp = await this.fetchPost(bot, channel, subreddit);
+			const resp = await this.fetchPost(bot, channel, subreddit, { type });
 			await interaction.reply({ embeds: [resp] });
 		} catch (err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
@@ -87,11 +107,11 @@ class Reddit extends Command {
 	 * @param {string} subreddit The subreddit to get a post from
 	 * @returns {embed}
 	*/
-	async fetchPost(bot, channel, subreddit) {
+	async fetchPost(bot, channel, subreddit, { type } = 'hot') {
 		let reddit;
 		try {
 			// Whether or not to remove NSFW content
-			reddit = await bot.reddit.fetchSubreddit(subreddit, { removeNSFW: !(channel.nsfw || channel.type == 'DM') });
+			reddit = await bot.reddit.fetchSubreddit(subreddit, { removeNSFW: !(channel.nsfw || channel.type == 'DM'), type });
 
 			// Send message to channel
 			return new Embed(bot, channel.guild)

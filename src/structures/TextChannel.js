@@ -1,13 +1,13 @@
 // Dependecies
-const { MessageEmbed, TextChannel } = require('discord.js');
+const { EmbedBuilder, TextChannel, PermissionsBitField: { Flags } } = require('discord.js');
 
 // override send method
 const oriSend = TextChannel.prototype.send;
 TextChannel.prototype.send = function(...args) {
 	const send = oriSend.bind(this);
 	// check permissions
-	if (!this.permissionsFor(this.client.user).has('SEND_MESSAGES')) return;
-	if (!this.permissionsFor(this.client.user).has('EMBED_LINKS')) {
+	if (!this.permissionsFor(this.client.user).has(Flags.SendMessages)) return;
+	if (!this.permissionsFor(this.client.user).has(Flags.EmbedLinks)) {
 		return send(this.client.translate('misc:MISSING_PERMISSION', { PERMISSIONS: this.client.translate('permissions:EMBED_LINKS', {}, this.guild.settings.Language) }, this.guild.settings.Language));
 	}
 
@@ -23,17 +23,16 @@ TextChannel.prototype.send = function(...args) {
 module.exports = Object.defineProperties(TextChannel.prototype, {
 	// Send custom 'error' message
 	error: {
-		value: function(key, args, returnValue) {
+		value: function(key, args, isForEmbed) {
 			try {
-				const emoji = this.permissionsFor(this.client.user).has('USE_EXTERNAL_EMOJIS') ? this.client.customEmojis['cross'] : ':negative_squared_cross_mark:';
-				const embed = new MessageEmbed()
+				const emoji = this.permissionsFor(this.client.user).has(Flags.UseExternalEmojis) ? this.client.customEmojis['cross'] : ':negative_squared_cross_mark:';
+				const embed = new EmbedBuilder()
 					.setColor(15158332)
 					.setDescription(`${emoji} ${this.client.translate(key, args, this.guild.settings.Language) ?? key}`);
-				if (returnValue) {
-					return embed;
-				} else {
-					return this.send({ embeds: [embed] });
-				}
+
+				// Either return the error embed or send the error message
+				if (isForEmbed) return embed;
+				this.send({ embeds: [embed] }).then(m => m.timedDelete({ timeout: 5000 }));
 			} catch (err) {
 				this.client.logger.error(err.message);
 			}
@@ -41,17 +40,13 @@ module.exports = Object.defineProperties(TextChannel.prototype, {
 	},
 	// Send custom 'success' message
 	success: {
-		value: function(key, args, returnValue) {
+		value: function(key, args, isForEmbed) {
 			try {
-				const emoji = this.permissionsFor(this.client.user).has('USE_EXTERNAL_EMOJIS') ? this.client.customEmojis['checkmark'] : ':white_check_mark:';
-				const embed = new MessageEmbed()
+				const emoji = this.permissionsFor(this.client.user).has(Flags.UseExternalEmojis) ? this.client.customEmojis['checkmark'] : ':white_check_mark:';
+				const embed = new EmbedBuilder()
 					.setColor(3066993)
 					.setDescription(`${emoji} ${this.client.translate(key, args, this.guild.settings.Language) ?? key}`);
-				if (returnValue) {
-					return embed;
-				} else {
-					return this.send({ embeds: [embed] });
-				}
+				return isForEmbed ? embed : this.send({ embeds: [embed] });
 			} catch (err) {
 				this.client.logger.error(err.message);
 			}

@@ -1,5 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,11 +18,21 @@ class TicketCreate extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['t-create', 't-open'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'MANAGE_CHANNELS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.ManageChannels],
 			description: 'Creates a ticket',
 			usage: 'ticket-create [reason]',
 			cooldown: 3000,
 			examples: ['t-create Something isn\'t working'],
+			slash: false,
+			options: [
+				{
+					name: 'reason',
+					description: 'Reason for creating ticket.',
+					type: ApplicationCommandOptionType.String,
+					maxLength: 2000,
+					required: false,
+				},
+			],
 		});
 	}
 
@@ -35,7 +46,7 @@ class TicketCreate extends Command {
 	async run(bot, message, settings) {
 		// Check if a ticket channel is already open
 		if (message.guild.channels.cache.find(channel => channel.name == `ticket-${message.author.id}`)) {
-			return message.channel.error('ticket/ticket-create:TICKET_EXISTS').then(m => m.timedDelete({ timeout: 10000 }));
+			return message.channel.error('ticket/ticket-create:TICKET_EXISTS');
 		}
 
 		// get reason
@@ -43,39 +54,99 @@ class TicketCreate extends Command {
 
 		// create perm array
 		const perms = [
-			{ id: message.author, allow: ['SEND_MESSAGES', 'VIEW_CHANNEL'] },
-			{ id: message.guild.roles.everyone, deny: ['SEND_MESSAGES', 'VIEW_CHANNEL'] },
-			{ id: bot.user, allow: ['SEND_MESSAGES', 'VIEW_CHANNEL', 'EMBED_LINKS'] },
+			{ id: message.author, allow: [Flags.SendMessages, Flags.ViewChannel] },
+			{ id: message.guild.roles.everyone, deny: [Flags.SendMessages, Flags.ViewChannel] },
+			{ id: bot.user, allow: [Flags.SendMessages, Flags.ViewChannel, Flags.EmbedLinks] },
 		];
-		if (message.guild.roles.cache.get(settings.TicketSupportRole)) perms.push({ id: settings.TicketSupportRole, allow: ['SEND_MESSAGES', 'VIEW_CHANNEL'] });
+		if (message.guild.roles.cache.get(settings.TicketSupportRole)) perms.push({ id: settings.TicketSupportRole, allow: [Flags.SendMessages, Flags.ViewChannel] });
 
 		// create channel
-		message.guild.channels.create(`ticket-${message.author.id}`, { type: 'text',
-			reason: reason,
-			parent: settings.TicketCategory,
-			permissionOverwrites: perms })
-			.then(async channel => {
+		try {
+			const channel = await message.guild.channels.create(`ticket-${message.author.id}`, { type: 'text',
+				reason: reason,
+				parent: settings.TicketCategory,
+				permissionOverwrites: perms });
+
 			// reply to user saying that channel has been created
-				const successEmbed = new Embed(bot, message.guild)
-					.setTitle('ticket/ticket-create:TITLE')
-					.setDescription(message.translate('ticket/ticket-create:DESC', { CHANNEL: channel.id }));
-				message.channel.send({ embeds: [successEmbed] }).then(m => m.timedDelete({ timeout:10000 }));
+			const successEmbed = new Embed(bot, message.guild)
+				.setTitle('ticket/ticket-create:TITLE')
+				.setDescription(message.translate('ticket/ticket-create:DESC', { CHANNEL: channel.id }));
+			message.channel.send({ embeds: [successEmbed] }).then(m => m.timedDelete({ timeout:10000 }));
 
-				// Add message to ticket channel
-				const embed = new Embed(bot, message.guild)
-					.setColor(0xFF5555)
-					.addField(message.translate('ticket/ticket-create:FIELD1', { USERNAME: message.author.tag }), message.translate('ticket/ticket-create:FIELDT'))
-					.addField(message.translate('ticket/ticket-create:FIELD2'), reason)
-					.setTimestamp();
-				channel.send({ content: `${message.author}${message.guild.roles.cache.get(settings.TicketSupportRole) ? `, <@&${settings.TicketSupportRole}>` : ''}.`, embeds: [embed] });
+			// Add message to ticket channel
+			const embed = new Embed(bot, message.guild)
+				.setColor(0xFF5555)
+				.addFields(
+					{ name: message.translate('ticket/ticket-create:FIELD1', { USERNAME: message.author.tag }), value: message.translate('ticket/ticket-create:FIELDT') },
+					{ name: message.translate('ticket/ticket-create:FIELD2'), value: reason },
+				)
+				.setTimestamp();
+			channel.send({ content: `${message.author}${message.guild.roles.cache.get(settings.TicketSupportRole) ? `, <@&${settings.TicketSupportRole}>` : ''}.`, embeds: [embed] });
 
-				// run ticketcreate event
-				await bot.emit('ticketCreate', channel, embed);
-			}).catch(err => {
-				if (message.deletable) message.delete();
-				bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-				message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
-			});
+			// run ticketcreate event
+			bot.emit('ticketCreate', channel, embed);
+		} catch (err) {
+			if (message.deletable) message.delete();
+			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
+			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
+		}
+	}
+
+	/**
+	 * Function for receiving interaction.
+	 * @param {bot} bot The instantiating client
+	 * @param {interaction} interaction The interaction that ran the command
+	 * @param {guild} guild The guild the interaction ran in
+	 * @param {args} args The options provided in the command, if any
+	 * @readonly
+	*/
+	async callback(bot, interaction, guild, args) {
+		const reason = args.get('reason')?.value ?? guild.translate('misc:NO_REASON'),
+			{ settings } = guild;
+		let channel = guild.channels.cache.get(interaction.channelId);
+
+		// Check if a ticket channel is already open
+		if (guild.channels.cache.find(c => c.name == `ticket-${interaction.user.id}`)) {
+			return interaction.reply({ embeds: [channel.error('ticket/ticket-create:TICKET_EXISTS', {}, true)], ephermal: true });
+		}
+
+		// create perm array
+		const perms = [
+			{ id: interaction.user, allow: [Flags.SendMessages, Flags.ViewChannel] },
+			{ id: guild.roles.everyone, deny: [Flags.SendMessages, Flags.ViewChannel] },
+			{ id: bot.user, allow: [Flags.SendMessages, Flags.ViewChannel, Flags.EmbedLinks] },
+		];
+		if (guild.roles.cache.get(settings.TicketSupportRole)) perms.push({ id: settings.TicketSupportRole, allow: [Flags.SendMessages, Flags.ViewChannel] });
+
+		// create channel
+		try {
+			channel = await guild.channels.create(`ticket-${interaction.user.id}`, { type: 'text',
+				reason: reason,
+				parent: settings.TicketCategory,
+				permissionOverwrites: perms });
+
+			// reply to user saying that channel has been created
+			const successEmbed = new Embed(bot, guild)
+				.setTitle('ticket/ticket-create:TITLE')
+				.setDescription(guild.translate('ticket/ticket-create:DESC', { CHANNEL: channel.id }));
+			interaction.reply({ embeds: [successEmbed], ephermal: true });
+
+			// Add message to ticket channel
+			const embed = new Embed(bot, guild)
+				.setColor(0xFF5555)
+				.addFields(
+					{ name: guild.translate('ticket/ticket-create:FIELD1', { USERNAME: interaction.user.tag }), value: guild.translate('ticket/ticket-create:FIELDT') },
+					{ name: guild.translate('ticket/ticket-create:FIELD2'), value: reason },
+				)
+				.setTimestamp();
+			channel.send({ content: `${interaction.user}${guild.roles.cache.get(settings.TicketSupportRole) ? `, <@&${settings.TicketSupportRole}>` : ''}.`, embeds: [embed] });
+
+			// run ticketcreate event
+			bot.emit('ticketCreate', channel, embed);
+		} catch (err) {
+			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
+			interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
+		}
 	}
 }
 

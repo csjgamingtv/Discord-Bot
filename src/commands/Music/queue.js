@@ -1,7 +1,6 @@
 // Dependencies
-const { paginate } = require('../../utils'),
-	{ Embed } = require('../../utils'),
-	{ time: { getReadableTime } } = require('../../utils'),
+const { paginate, Embed, time: { getReadableTime } } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -19,7 +18,7 @@ class Queue extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['que'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'ADD_REACTIONS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.AddReactions],
 			description: 'Displays the queue.',
 			usage: 'queue [pageNumber]',
 			cooldown: 3000,
@@ -28,7 +27,7 @@ class Queue extends Command {
 			options: [{
 				name: 'page',
 				description: 'The page number.',
-				type: 'INTEGER',
+				type: ApplicationCommandOptionType.Integer,
 				required: false,
 			}],
 		});
@@ -44,13 +43,13 @@ class Queue extends Command {
 		// Check if the member has role to interact with music plugin
 		if (message.guild.roles.cache.get(settings.MusicDJRole)) {
 			if (!message.member.roles.cache.has(settings.MusicDJRole)) {
-				return message.channel.error('misc:MISSING_ROLE').then(m => m.timedDelete({ timeout: 10000 }));
+				return message.channel.error('misc:MISSING_ROLE');
 			}
 		}
 
 		// Check that a song is being played
 		const player = bot.manager?.players.get(message.guild.id);
-		if (!player) return message.channel.error('misc:NO_QUEUE').then(m => m.timedDelete({ timeout: 10000 }));
+		if (!player) return message.channel.error('misc:NO_QUEUE');
 
 		// Make sure queue is not empty
 		const queue = player.queue;
@@ -166,12 +165,12 @@ class Queue extends Command {
 				paginate(bot, channel, pages, member.id);
 				return interaction.reply('Loaded Queue');
 			} else {
-				return interaction.reply(pages[0]);
+				return interaction.reply({ embeds: [pages[0]] });
 			}
 		} else {
 			if (page > pagesNum) return interaction.reply({ ephemeral: true, embeds: [channel.error('music/queue:TOO_HIGH', { NUM: pagesNum }, true)] });
 			const pageNum = page == 0 ? 1 : page - 1;
-			return interaction.reply(pages[pageNum]);
+			return interaction.reply({ embeds: [pages[pageNum]] });
 		}
 	}
 }

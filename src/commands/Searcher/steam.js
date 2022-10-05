@@ -2,6 +2,7 @@
 const fetch = require('node-fetch'),
 	dateFormat = require('dateformat'),
 	{ Embed } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +18,7 @@ class Steam extends Command {
 		super(bot, {
 			name: 'steam',
 			dirname: __dirname,
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Get information on a Steam account.',
 			usage: 'steam <user>',
 			cooldown: 3000,
@@ -26,7 +27,7 @@ class Steam extends Command {
 			options: [{
 				name: 'username',
 				description: 'Account name',
-				type: 'STRING',
+				type: ApplicationCommandOptionType.String,
 				required: true,
 			}],
 		});
@@ -41,7 +42,7 @@ class Steam extends Command {
 	*/
 	async run(bot, message, settings) {
 		// Steam config
-		if (!message.args[0])	return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('searcher/steam:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (!message.args[0])	return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('searcher/steam:USAGE')) });
 
 		// send 'waiting' message to show bot has recieved message
 		const msg = await message.channel.send(message.translate('searcher/fortnite:FETCHING', {

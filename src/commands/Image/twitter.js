@@ -1,6 +1,7 @@
 // Dependencies
 const { Embed } = require('../../utils'),
 	fetch = require('node-fetch'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +18,7 @@ class Twitter extends Command {
 			name: 'twitter',
 			dirname: __dirname,
 			aliases: ['tweet'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Create a fake Twitter tweet.',
 			usage: 'twitter [user] <text>',
 			cooldown: 5000,
@@ -26,12 +27,13 @@ class Twitter extends Command {
 			options: [{
 				name: 'user',
 				description: 'User who made tweet',
-				type: 'USER',
+				type: ApplicationCommandOptionType.User,
 				required: true,
 			}, {
 				name: 'text',
 				description: 'tweet content',
-				type: 'STRING',
+				type: ApplicationCommandOptionType.String,
+				maxLength: 61,
 				required: true,
 			}],
 		});
@@ -52,10 +54,10 @@ class Twitter extends Command {
 		const text = message.args.join(' ').replace(/<@.?\d*?>/g, '');
 
 		// make sure text was entered
-		if (message.args.length == 0) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('image/twitter:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (message.args.length == 0) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('image/twitter:USAGE')) });
 
 		// make sure the text isn't longer than 60 characters
-		if (text.length >= 61) return message.channel.error('image/twitter:TOO_LONG').then(m => m.timedDelete({ timeout: 5000 }));
+		if (text.length >= 61) return message.channel.error('image/twitter:TOO_LONG');
 
 		// send 'waiting' message to show bot has recieved message
 		const msg = await message.channel.send(message.translate('misc:GENERATING_IMAGE', {
@@ -72,7 +74,7 @@ class Twitter extends Command {
 		} catch(err) {
 			if (message.deletable) message.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 		}
 		msg.delete();
 	}
@@ -86,15 +88,12 @@ class Twitter extends Command {
  	 * @readonly
 	*/
 	async callback(bot, interaction, guild, args) {
-		const member = guild.members.cache.get(args.get('user').value);
-		const text = args.get('text').value;
-		const channel = guild.channels.cache.get(interaction.channelId);
+		const member = guild.members.cache.get(args.get('user').value),
+			text = args.get('text').value,
+			channel = guild.channels.cache.get(interaction.channelId);
 
-		// make sure the text isn't longer than 80 characters
-		if (text.length >= 61) return interaction.reply({ embeds: [channel.error('image/twitter:TOO_LONG', {}, true)], ephemeral: true });
+		await interaction.reply({ content: guild.translate('misc:GENERATING_IMAGE', { EMOJI: bot.customEmojis['loading'] }) });
 
-		await interaction.reply({ content: guild.translate('misc:GENERATING_IMAGE', {
-			EMOJI: bot.customEmojis['loading'] }) });
 		try {
 			const json = await fetch(encodeURI(`https://nekobot.xyz/api/imagegen?type=tweet&username=${member.user.username}&text=${text}`)).then(res => res.json());
 			const embed = new Embed(bot, guild)

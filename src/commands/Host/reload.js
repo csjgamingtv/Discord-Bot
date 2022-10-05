@@ -2,6 +2,7 @@
 const { promisify } = require('util'),
 	readdir = promisify(require('fs').readdir),
 	path = require('path'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -18,11 +19,19 @@ class Reload extends Command {
 			name: 'reload',
 			ownerOnly: true,
 			dirname: __dirname,
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Reloads a command.',
 			usage: 'reload <command / event>',
 			cooldown: 3000,
 			examples: ['reload help', 'reload channelCreate'],
+			slash: true,
+			options: [{
+				name: 'name',
+				description: 'command or event to reload',
+				type: ApplicationCommandOptionType.String,
+				// choices: [...[...bot.commands.keys()].map(i => ({ name: i, value: i })), ...Object.keys(bot._events).map(i => ({ name: i, value: i }))],
+				required: true,
+			}],
 		});
 	}
 
@@ -38,7 +47,7 @@ class Reload extends Command {
 		if (message.deletable) message.delete();
 
 		// Checks to see if a command was specified
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('host/reload:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('host/reload:USAGE')) });
 
 		// checks to make sure command exists
 		const commandName = message.args[0].toLowerCase();
@@ -54,7 +63,7 @@ class Reload extends Command {
 			} catch (err) {
 				bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
 				if (message.deletable) message.delete();
-				return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+				return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 			}
 		} else if (Object.keys(bot._events).includes(message.args[0])) {
 			try {
@@ -79,11 +88,22 @@ class Reload extends Command {
 				});
 			} catch (err) {
 				bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-				return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+				return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 			}
 		} else {
-			return message.channel.error('host/reload:INCORRECT_DETAILS', { NAME: commandName }).then(m => m.timedDelete({ timeout: 10000 }));
+			return message.channel.error('host/reload:INCORRECT_DETAILS', { NAME: commandName });
 		}
+	}
+
+	/**
+	 * Function for receiving interaction.
+	 * @param {bot} bot The instantiating client
+	 * @param {interaction} interaction The interaction that ran the command
+	 * @param {guild} guild The guild the interaction ran in
+	 * @readonly
+	*/
+	async callback(bot, interaction) {
+		interaction.reply({ content: 'This is currently unavailable.' });
 	}
 }
 

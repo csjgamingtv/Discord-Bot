@@ -1,6 +1,6 @@
 // Dependencies
-const { Embed } = require('../../utils'),
-	{ time: { read24hrFormat, getReadableTime }, functions: { checkMusic } } = require('../../utils'),
+const { Embed, time: { read24hrFormat, getReadableTime }, functions: { checkMusic } } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -18,7 +18,7 @@ class Rewind extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['rw'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'SPEAK'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.Speak],
 			description: 'Rewinds the player by your specified amount.',
 			usage: 'rewind <time>',
 			cooldown: 3000,
@@ -27,7 +27,7 @@ class Rewind extends Command {
 			options: [{
 				name: 'time',
 				description: 'The time you want to rewind to.',
-				type: 'STRING',
+				type: ApplicationCommandOptionType.String,
 				required: false,
 			}],
 		});
@@ -42,7 +42,7 @@ class Rewind extends Command {
 	async run(bot, message) {
 		// check to make sure bot can play music based on permissions
 		const playable = checkMusic(message.member, bot);
-		if (typeof (playable) !== 'boolean') return message.channel.error(playable).then(m => m.timedDelete({ timeout: 10000 }));
+		if (typeof (playable) !== 'boolean') return message.channel.error(playable);
 
 		const player = bot.manager?.players.get(message.guild.id);
 

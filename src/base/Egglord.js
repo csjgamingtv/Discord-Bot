@@ -1,7 +1,7 @@
 // Dependencies
-const { Client, Collection } = require('discord.js'),
+const { ActivityType, Client, Collection, GatewayIntentBits: FLAGS, Partials, PermissionsBitField: { Flags: PermissionFlag } } = require('discord.js'),
 	{ GuildSchema } = require('../database/models'),
-	GiveawaysManager = require('./giveaway/Manager'),
+	GiveawaysManager = require('./Giveaway-Manager'),
 	path = require('path'),
 	{ promisify } = require('util'),
 	AudioManager = require('./Audio-Manager'),
@@ -15,14 +15,15 @@ const { Client, Collection } = require('discord.js'),
 class Egglord extends Client {
 	constructor() {
 		super({
-			partials: ['GUILD_MEMBER', 'USER', 'MESSAGE', 'CHANNEL', 'REACTION', 'GUILD_SCHEDULED_EVENT'],
-			intents: ['GUILDS', 'GUILD_MEMBERS', 'GUILD_BANS', 'GUILD_EMOJIS_AND_STICKERS', 'GUILD_MESSAGES',
-				'GUILD_MESSAGE_REACTIONS', 'DIRECT_MESSAGES', 'GUILD_VOICE_STATES', 'GUILD_INVITES', 'GUILD_SCHEDULED_EVENTS'],
+			partials: [Partials.GuildMember, Partials.User, Partials.Message, Partials.Channel, Partials.Reaction, Partials.GuildScheduledEvent],
+			intents: [FLAGS.Guilds, FLAGS.GuildMembers, FLAGS.GuildBans, FLAGS.GuildEmojisAndStickers,
+				FLAGS.GuildMessages, FLAGS.GuildMessageReactions, FLAGS.DirectMessages, FLAGS.GuildVoiceStates, FLAGS.GuildInvites,
+				FLAGS.GuildScheduledEvents, FLAGS.MessageContent],
 			presence: {
 				status: 'online',
 				activities: [{
 					name: 'my mention',
-					type: 'LISTENING',
+					type: ActivityType.Listening,
 					url: 'https://www.twitch.tv/ram5s5',
 				}],
 			},
@@ -52,9 +53,14 @@ class Egglord extends Client {
 					threshold: 5000,
 					embedColor: '#FF0000',
 				},
+				pauseOptions: {
+					isPaused: false,
+					content: '⚠️ **THIS GIVEAWAY IS PAUSED !** ⚠️',
+					embedColor: '#FFFF00',
+					infiniteDurationText: '`Never`',
+				},
 			},
 		});
-
 		/**
 		 * The command data
 		 * @type {Collection}
@@ -187,30 +193,29 @@ class Egglord extends Client {
 	/**
 	 * Function for fetching slash command data.
 	 * @param {string} category The command category to get data from
-	 * @returns {?array}
+	 * @returns {array}
 	*/
 	async loadInteractionGroup(category) {
 		try {
 			const commands = (await readdir('./src/commands/' + category + '/')).filter((v, i, a) => a.indexOf(v) === i);
 			const arr = [];
-			commands.forEach((cmd) => {
+			for (const cmd of commands) {
 				if (!this.config.disabledCommands.includes(cmd.replace('.js', ''))) {
 					const command = new (require(`../commands/${category}${path.sep}${cmd}`))(this);
 					if (command.conf.slash) {
 						const item = {
 							name: command.help.name,
 							description: command.help.description,
-							defaultPermission: command.conf.defaultPermission,
+							defaultMemberPermissions: command.conf.userPermissions.length >= 1 ? command.conf.userPermissions : PermissionFlag.SendMessages,
 						};
-						if (command.conf.options[0]) {
-							item.options = command.conf.options;
-						}
+						if (command.conf.options[0]) item.options = command.conf.options;
 						arr.push(item);
 					}
 				}
-			});
+			}
 			return arr;
 		} catch (err) {
+			console.log(err);
 			return `Unable to load category ${category}: ${err}`;
 		}
 	}

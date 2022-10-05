@@ -1,5 +1,7 @@
 // Dependencies
 const { time: { getTotalTime } } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ ChannelType } = require('discord-api-types/v10'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,24 +19,24 @@ class GiveawayStart extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['gstart', 'g-create'],
-			userPermissions: ['MANAGE_GUILD'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'ADD_REACTIONS'],
+			userPermissions: [Flags.ManageGuild],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.AddReactions],
 			description: 'Start a giveaway',
 			usage: 'g-start <time> <Number of winners> <prize>',
 			cooldown: 30000,
 			examples: ['g-start 1m 1 nitro', 'g-start 2h30m 3 nitro classic'],
-			slash: true,
+			slash: false,
 			options: [
 				{
 					name: 'time',
 					description: 'Extra time added to the giveaway.',
-					type: 'STRING',
+					type: ApplicationCommandOptionType.String,
 					required: true,
 				},
 				{
 					name: 'winners',
 					description: 'New winner count.',
-					type: 'NUMBER',
+					type: ApplicationCommandOptionType.Integer,
 					minValue: 1,
 					maxValue: 10,
 					required: true,
@@ -42,8 +44,16 @@ class GiveawayStart extends Command {
 				{
 					name: 'prize',
 					description: 'New prize',
-					type: 'STRING',
+					type: ApplicationCommandOptionType.String,
+					maxLength: 256,
 					required: true,
+				},
+				{
+					name: 'channel',
+					description: 'Channel to post the giveaway in.',
+					type: ApplicationCommandOptionType.Channel,
+					channelTypes: [ChannelType.GuildText, ChannelType.GuildPublicThread, ChannelType.GuildPrivateThread, ChannelType.GuildNews],
+					required: false,
 				},
 			],
 		});
@@ -61,17 +71,17 @@ class GiveawayStart extends Command {
 		if (settings.ModerationClearToggle && message.deletable) message.delete();
 
 		// Make sure a time, winner count & prize is entered
-		if (message.args.length <= 2) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('giveaway/g-start:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (message.args.length <= 2) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('giveaway/g-start:USAGE')) });
 
 		// Get time
 		const { error, success: time } = getTotalTime(message.args[0]);
 		if (error) return message.channel.error(error);
 
 		// Make sure that number of winners is a number
-		if (isNaN(message.args[1]) || message.args[1] > 10) return message.channel.error('giveaway/g-edit:INCORRECT_WINNER_COUNT').then(m => m.timedDelete({ timeout: 5000 }));
+		if (isNaN(message.args[1]) || message.args[1] > 10) return message.channel.error('giveaway/g-edit:INCORRECT_WINNER_COUNT');
 
 		// Make sure prize is less than 256 characters
-		if (message.args.slice(2).join(' ').length >= 256) return message.channel.error('giveaway/g-start:PRIZE_TOO_LONG').then(m => m.timedDelete({ timeout: 5000 }));
+		if (message.args.slice(2).join(' ').length >= 256) return message.channel.error('giveaway/g-start:PRIZE_TOO_LONG');
 
 		// Start the giveaway
 		try {
@@ -91,6 +101,7 @@ class GiveawayStart extends Command {
 					winners: message.translate('giveaway/g-start:WINNERS'),
 					endedAt: message.translate('giveaway/g-start:END_AT'),
 					hostedBy: message.translate('giveaway/g-start:HOSTED'),
+					drawing: 'Drawing: {timestamp}',
 					units: {
 						seconds: message.translate('time:SECONDS', { amount: '' }).trim(),
 						minutes: message.translate('time:MINUTES', { amount: '' }).trim(),
@@ -116,16 +127,13 @@ class GiveawayStart extends Command {
 	*/
 	async callback(bot, interaction, guild, args) {
 		const member = guild.members.cache.get(interaction.user.id),
-			channel = guild.channels.cache.get(interaction.channelId),
+			channel = guild.channels.cache.get(args.get('channel')?.value ?? interaction.channelId),
 			winners = args.get('winners').value,
 			prize = args.get('prize').value;
 
 		// Get time
 		const { error, success: time } = getTotalTime(args.get('time').value);
 		if (error) return interaction.reply({ embeds: [channel.error(error, null, true)] });
-
-		// Make sure prize is less than 256 characters
-		if (prize.length >= 256) return interaction.reply({ embeds: [channel.error('giveaway/g-start:PRIZE_TOO_LONG', {}, true)], fetchReply: true }).then(m => m.timedDelete({ timeout: 5000 }));
 
 		// Start the giveaway
 		try {
@@ -145,6 +153,7 @@ class GiveawayStart extends Command {
 					winners: guild.translate('giveaway/g-start:WINNERS'),
 					endedAt: guild.translate('giveaway/g-start:END_AT'),
 					hostedBy: guild.translate('giveaway/g-start:HOSTED'),
+					drawing: 'Drawing: {timestamp}',
 					units: {
 						seconds: guild.translate('time:SECONDS', { amount: '' }).trim(),
 						minutes: guild.translate('time:MINUTES', { amount: '' }).trim(),
@@ -156,9 +165,10 @@ class GiveawayStart extends Command {
 			bot.logger.log(`${member.user.tag} started a giveaway in server: [${guild.id}].`);
 		} catch (err) {
 			bot.logger.error(`Command: 'g-start' has error: ${err}.`);
-			interaction.reply('misc:ERROR_MESSAGE', { ERROR: err }).then(m => m.timedDelete({ timeout: 5000 }));
+			interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
 		}
 	}
+
 }
 
 module.exports = GiveawayStart;

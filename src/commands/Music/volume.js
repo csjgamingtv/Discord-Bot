@@ -1,6 +1,6 @@
 // Dependencies
-const { Embed } = require('../../utils'),
-	{ functions: { checkMusic } } = require('../../utils'),
+const { Embed, functions: { checkMusic } } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -18,7 +18,7 @@ class Back extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['vol'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Changes the volume of the song',
 			usage: 'volume <Number>',
 			cooldown: 3000,
@@ -27,7 +27,7 @@ class Back extends Command {
 			options: [{
 				name: 'volume',
 				description: 'The volume you want the song to play at.',
-				type: 'INTEGER',
+				type: ApplicationCommandOptionType.Integer,
 				minValue: 0,
 				maxValue: 1000,
 				required: true,
@@ -44,7 +44,7 @@ class Back extends Command {
 	async run(bot, message) {
 		// check to make sure bot can play music based on permissions
 		const playable = checkMusic(message.member, bot);
-		if (typeof (playable) !== 'boolean') return message.channel.error(playable).then(m => m.timedDelete({ timeout: 10000 }));
+		if (typeof (playable) !== 'boolean') return message.channel.error(playable);
 
 		const player = bot.manager?.players.get(message.guild.id);
 
@@ -57,7 +57,7 @@ class Back extends Command {
 		}
 
 		// make sure the number was between 0 and 1000
-		if (Number(message.args[0]) <= 0 || Number(message.args[0]) > 1000) return message.channel.error('music/volume:TOO_HIGH').then(m => m.timedDelete({ timeout: 10000 }));
+		if (Number(message.args[0]) <= 0 || Number(message.args[0]) > 1000) return message.channel.error('music/volume:TOO_HIGH');
 
 		// Update volume
 		player.setVolume(Number(message.args));
@@ -92,9 +92,6 @@ class Back extends Command {
 				.setDescription(guild.translate('music/volume:CURRENT', { NUM: player.volume }));
 			return interaction.reply({ embeds: [embed] });
 		}
-
-		// make sure volume is between 0 and 1000
-		if (volume <= 0 || volume > 1000) return interaction.reply({ ephemeral: true, embeds: [channel.error('music/volume:TOO_HIGH', { ERROR: null }, true)] });
 
 		// Update volume
 		player.setVolume(volume);

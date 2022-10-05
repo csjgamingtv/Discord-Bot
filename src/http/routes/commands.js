@@ -24,7 +24,10 @@ module.exports = (bot) => {
 	// JSON view of all commands
 	router.get('/json', (req, res) => {
 
-		res.status(200).json([...bot.commands]);
+		res.status(200).json([...bot.commands.map(c => Object.assign(c, { conf: {
+			botPermissions: c.conf.botPermissions.map(i => Number(i)),
+			userPermissions: c.conf.userPermissions.map(i => Number(i)),
+		} }))]);
 	});
 
 	// Show information on a particular command
@@ -33,6 +36,9 @@ module.exports = (bot) => {
 		// check if command exists
 		if (bot.commands.get(req.params.command) || bot.commands.get(bot.aliases.get(req.params.command))) {
 			const command = bot.commands.get(req.params.command) || bot.commands.get(bot.aliases.get(req.params.command));
+			command.conf.botPermissions = command.conf.botPermissions.map(i => Number(i));
+			command.conf.userPermissions = command.conf.userPermissions.map(i => Number(i));
+
 			res.status(200).json({ command });
 		} else {
 			res.status(400).json({ error: 'Invalid command!' });

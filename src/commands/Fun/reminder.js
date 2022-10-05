@@ -1,6 +1,6 @@
 // Dependencies
 const ms = require('ms'),
-	{ MessageAttachment } = require('discord.js'),
+	{ MessageAttachment, ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	{ timeEventSchema } = require('../../database/models'),
 	{ time: { getTotalTime }, Embed } = require('../../utils'),
 	Command = require('../../structures/Command.js');
@@ -19,7 +19,7 @@ class Reminder extends Command {
 			name: 'reminder',
 			dirname: __dirname,
 			aliases: ['remindme'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Set a reminder.',
 			usage: 'reminder <time> <information>',
 			cooldown: 1000,
@@ -29,13 +29,14 @@ class Reminder extends Command {
 				{
 					name: 'time',
 					description: 'How long till I remind you.',
-					type: 'STRING',
+					type: ApplicationCommandOptionType.String,
 					required: true,
 				},
 				{
 					name: 'text',
 					description: 'What should I remind you off.',
-					type: 'STRING',
+					type: ApplicationCommandOptionType.String,
+					maxLength: 2000,
 					required: true,
 				},
 			],
@@ -53,7 +54,7 @@ class Reminder extends Command {
 		// Make something that time and information is entered
 		if (!message.args[1]) {
 			if (message.deletable) message.delete();
-			return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('fun/reminder:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+			return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('fun/reminder:USAGE')) });
 		}
 
 		// Get time

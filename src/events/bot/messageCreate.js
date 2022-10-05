@@ -1,6 +1,5 @@
 // Dependencies
-const { Collection } = require('discord.js'),
-	{ Embed } = require('../../utils'),
+const { Collection, PermissionsBitField, EmbedBuilder } = require('discord.js'),
 	{ time: { getReadableTime }, functions: { genInviteLink } } = require('../../utils'),
 	{ TagsSchema } = require('../../database/models'),
 	AutoModeration = require('../../helpers/autoModeration'),
@@ -38,7 +37,7 @@ class MessageCreate extends Event {
 
 		// Check if bot was mentioned
 		if (new RegExp(`/<@(!?)${bot.user.id}>/g`).test(message.content)) {
-			const embed = new Embed(bot, message.guild)
+			const embed = new EmbedBuilder()
 				.setAuthor({ name: bot.user.username, iconURL: bot.user.displayAvatarURL({ format: 'png' }) })
 				.setThumbnail(bot.user.displayAvatarURL({ format: 'png' }))
 				.setDescription([
@@ -46,11 +45,14 @@ class MessageCreate extends Event {
 					message.translate('events/message:INFO', { UPTIME: getReadableTime(bot.uptime), GUILDS: bot.guilds.cache.size, USERS: bot.guilds.cache.reduce((a, g) => a + g.memberCount, 0).toLocaleString(), CMDS: bot.commands.size }),
 					message.translate('events/message:PREFIX', { PREFIX: settings.prefix }),
 				].join('\n\n'))
-				.addField(message.translate('events/message:LINKS'), [
-					message.translate('events/message:ADD', { INVITE: genInviteLink(bot) }),
-					message.translate('events/message:SUPPORT', { LINK: bot.config.SupportServer.link }),
-					message.translate('events/message:WEBSITE', { URL: bot.config.websiteURL }),
-				].join('\n'));
+				.addFields(
+					{ name: message.translate('events/message:LINKS'),
+						value: [
+							message.translate('events/message:ADD', { INVITE: genInviteLink(bot) }),
+							message.translate('events/message:SUPPORT', { LINK: bot.config.SupportServer.link }),
+							message.translate('events/message:WEBSITE', { URL: bot.config.websiteURL }),
+						].join('\n') },
+				);
 			return message.channel.send({ embeds: [embed] });
 		}
 
@@ -120,21 +122,22 @@ class MessageCreate extends Event {
 				// check bot permissions
 				let neededPermissions = [];
 				cmd.conf.botPermissions.forEach((perm) => {
-					if (['SPEAK', 'CONNECT'].includes(perm)) {
+					if ([PermissionsBitField.Flags.Speak, PermissionsBitField.Flags.Connect].includes(perm)) {
 						if (!message.member.voice.channel) return;
-						if (!message.member.voice.channel.permissionsFor(message.guild.me).has(perm)) {
+						if (!message.member.voice.channel.permissionsFor(bot.user).has(perm)) {
 							neededPermissions.push(perm);
 						}
-					} else if (!message.channel.permissionsFor(message.guild.me).has(perm)) {
+					} else if (!message.channel.permissionsFor(bot.user).has(perm)) {
 						neededPermissions.push(perm);
 					}
-
 				});
 
 				if (neededPermissions.length > 0) {
-					bot.logger.error(`Missing permission: \`${neededPermissions.join(', ')}\` in [${message.guild.id}].`);
+					const perms = new PermissionsBitField();
+					neededPermissions.forEach((item) => perms.add(BigInt(item)));
+					bot.logger.error(`Missing permission: \`${perms.toArray().join(', ')}\` in [${message.guild.id}].`);
 					if (message.deletable) message.delete();
-					return message.channel.error('misc:MISSING_PERMISSION', { PERMISSIONS: neededPermissions.map((p) => message.translate(`permissions:${p}`)).join(', ') }).then(m => m.timedDelete({ timeout: 10000 }));
+					return message.channel.error('misc:MISSING_PERMISSION', { PERMISSIONS: perms.toArray().map((p) => message.translate(`permissions:${p}`)).join(', ') }).then(m => m.timedDelete({ timeout: 10000 }));
 				}
 
 				// check user permissions
@@ -146,8 +149,10 @@ class MessageCreate extends Event {
 				});
 
 				if (neededPermissions.length > 0) {
+					const perms = new PermissionsBitField();
+					neededPermissions.forEach((item) => perms.add(BigInt(item)));
 					if (message.deletable) message.delete();
-					return message.channel.error('misc:USER_PERMISSION', { PERMISSIONS: neededPermissions.map((p) => message.translate(`permissions:${p}`)).join(', ') }).then(m => m.timedDelete({ timeout: 10000 }));
+					return message.channel.error('misc:USER_PERMISSION', { PERMISSIONS: perms.toArray().map((p) => message.translate(`permissions:${p}`)).join(', ') }).then(m => m.timedDelete({ timeout: 10000 }));
 				}
 			}
 

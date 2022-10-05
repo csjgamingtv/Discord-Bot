@@ -1,5 +1,6 @@
 // Dependencies
-const	Command = require('../../structures/Command.js');
+const	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	Command = require('../../structures/Command.js');
 
 /**
  * Unban command
@@ -16,8 +17,8 @@ class Unban extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['un-ban'],
-			userPermissions: ['BAN_MEMBERS'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS', 'BAN_MEMBERS'],
+			userPermissions: [Flags.BanMembers],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.BanMembers],
 			description: 'Unban a user.',
 			usage: 'unban <userID> [reason]',
 			cooldown: 5000,
@@ -27,7 +28,7 @@ class Unban extends Command {
 				{
 					name: 'user',
 					description: 'The user to deafen.',
-					type: 'USER',
+					type: ApplicationCommandOptionType.User,
 					required: true,
 				},
 			],
@@ -53,7 +54,7 @@ class Unban extends Command {
 				const bUser = bans.find(ban => ban.user.id == user);
 				if (bUser) {
 					await message.guild.members.unban(bUser.user);
-					message.channel.success('moderation/unban:SUCCESS', { USER: bUser.user }).then(m => m.timedDelete({ timeout: 3000 }));
+					message.channel.success('moderation/unban:SUCCESS', { USER: bUser.user });
 				} else {
 					message.channel.error('moderation/unban:MISSING', { ID: user });
 				}
@@ -61,7 +62,7 @@ class Unban extends Command {
 		} catch (err) {
 			if (message.deletable) message.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 		}
 	}
 

@@ -1,6 +1,7 @@
 // Dependencies
 const { Embed } = require('../../utils'),
 	fetch = require('node-fetch'),
+	{ PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +18,7 @@ class Dog extends Command {
 			name: 'dog',
 			dirname: __dirname,
 			aliases: ['woof'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Have a nice picture of a dog.',
 			usage: 'dog',
 			cooldown: 2000,
@@ -43,7 +44,7 @@ class Dog extends Command {
 				if (message.deletable) message.delete();
 				bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
 				msg.delete();
-				return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+				return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 			});
 
 		msg.delete();
@@ -62,8 +63,8 @@ class Dog extends Command {
 	*/
 	async callback(bot, interaction, guild) {
 		const channel = guild.channels.cache.get(interaction.channelId);
-		await interaction.reply({ content: guild.translate('misc:GENERATING_IMAGE', {
-			EMOJI: bot.customEmojis['loading'] }) });
+		await interaction.reply({ content: guild.translate('misc:GENERATING_IMAGE', { EMOJI: bot.customEmojis['loading'] }) });
+
 		try {
 			const res = await fetch('https://nekos.life/api/v2/img/woof').then(info => info.json());
 			// send image

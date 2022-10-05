@@ -1,5 +1,6 @@
 // Dependencies
 const { functions: { checkMusic } } = require('../../utils'),
+	{ PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -16,7 +17,7 @@ class Pause extends Command {
 			name: 'pause',
 			guildOnly: true,
 			dirname: __dirname,
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'SPEAK'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.Speak],
 			description: 'Pauses the music.',
 			usage: 'pause',
 			cooldown: 3000,
@@ -33,7 +34,7 @@ class Pause extends Command {
 	async run(bot, message, settings) {
 		// check to make sure bot can play music based on permissions
 		const playable = checkMusic(message.member, bot);
-		if (typeof (playable) !== 'boolean') return message.channel.error(playable).then(m => m.timedDelete({ timeout: 10000 }));
+		if (typeof (playable) !== 'boolean') return message.channel.error(playable);
 
 		const player = bot.manager?.players.get(message.guild.id);
 

@@ -1,5 +1,6 @@
 // Dependencies
 const { functions: { checkMusic } } = require('../../utils'),
+	{ PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +18,7 @@ class Disconnect extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['stop', 'disconnect'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Disconnects the bot from the voice channel.',
 			usage: 'dc',
 			cooldown: 3000,
@@ -34,7 +35,7 @@ class Disconnect extends Command {
 	async run(bot, message) {
 		// check for DJ role, same VC and that a song is actually playing
 		const playable = checkMusic(message.member, bot);
-		if (typeof (playable) !== 'boolean') return message.channel.error(playable).then(m => m.timedDelete({ timeout: 10000 }));
+		if (typeof (playable) !== 'boolean') return message.channel.error(playable);
 
 		// Destory player (clears queue & leaves channel)
 		const player = bot.manager?.players.get(message.guild.id);

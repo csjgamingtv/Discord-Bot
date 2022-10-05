@@ -1,5 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +18,7 @@ class Report extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['rep'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Report a user.',
 			usage: 'report <user> [reason]',
 			cooldown: 3000,
@@ -27,13 +28,13 @@ class Report extends Command {
 				{
 					name: 'user',
 					description: 'The user to report.',
-					type: 'USER',
+					type: ApplicationCommandOptionType.User,
 					required: true,
 				},
 				{
 					name: 'reason',
 					description: 'The reason to report the user.',
-					type: 'STRING',
+					type: ApplicationCommandOptionType.String,
 					required: true,
 				},
 			],
@@ -55,28 +56,30 @@ class Report extends Command {
 			if (message.deletable) message.delete();
 
 			// check if a user was entered
-			if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/report:USAGE')) }).then(m => m.timedDelete({ timeout: 10000 }));
+			if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/report:USAGE')) });
 
 			// Get members mentioned in message
 			const members = await message.getMember(false);
 
 			// Make sure atleast a guildmember was found
-			if (!members[0]) return message.channel.error('moderation/ban:MISSING_USER').then(m => m.timedDelete({ timeout: 10000 }));
+			if (!members[0]) return message.channel.error('moderation/ban:MISSING_USER');
 
 			// Make sure user isn't trying to punish themselves
-			if (members[0].user.id == message.author.id) return message.channel.error('misc:SELF_PUNISH').then(m => m.timedDelete({ timeout: 10000 }));
+			if (members[0].user.id == message.author.id) return message.channel.error('misc:SELF_PUNISH');
 
 			// Make sure a reason was added
-			if (!message.args[1]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/report:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+			if (!message.args[1]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/report:USAGE')) });
 
 			// Send messages to ModLog channel
 			const embed = new Embed(bot, message.guild)
-				.setAuthor({ name: message.translate('moderation/report:AUTHOR'), iconURL: members[0].user.displayAvatarURL })
+				.setAuthor({ name: message.translate('moderation/report:AUTHOR'), iconURL: members[0].user.displayAvatarURL() })
 				.setColor(15158332)
-				.addField(message.translate('moderation/report:MEMBER'), members[0], true)
-				.addField(message.translate('moderation/report:BY'), message.member, true)
-				.addField(message.translate('moderation/report:IN'), message.channel)
-				.addField(message.translate('moderation/report:REASON'), message.args.slice(1).join(' '))
+				.addFields(
+					{ name: message.translate('moderation/report:MEMBER'), value: members[0], inline: true },
+					{ name: message.translate('moderation/report:BY'), value: message.member, inline: true },
+					{ name: message.translate('moderation/report:IN'), value: message.channel },
+					{ name: message.translate('moderation/report:REASON'), value: message.args.slice(1).join(' ') },
+				)
 				.setTimestamp()
 				.setFooter(message.guild.name);
 			const repChannel = message.guild.channels.cache.find(channel => channel.id === settings.ModLogChannel);
@@ -85,7 +88,7 @@ class Report extends Command {
 				message.channel.success('moderation/report:SUCCESS', { USER: members[0].user }).then(m => m.timedDelete({ timeout: 3000 }));
 			}
 		} else {
-			message.channel.error('misc:ERROR_MESSAGE', { ERROR: 'Logging: `REPORTS` has not been setup' }).then(m => m.timedDelete({ timeout: 5000 }));
+			message.channel.error('misc:ERROR_MESSAGE', { ERROR: 'Logging: `REPORTS` has not been setup' });
 		}
 	}
 
@@ -113,10 +116,12 @@ class Report extends Command {
 			const embed = new Embed(bot, guild)
 				.setAuthor({ name: guild.translate('moderation/report:AUTHOR'), iconURL: member.user.displayAvatarURL() })
 				.setColor(15158332)
-				.addField(guild.translate('moderation/report:MEMBER'), member, true)
-				.addField(guild.translate('moderation/report:BY'), interaction.member, true)
-				.addField(guild.translate('moderation/report:IN'), interaction.channel)
-				.addField(guild.translate('moderation/report:REASON'), reason)
+				.addFields(
+					{ name: guild.translate('moderation/report:MEMBER'), value: member, inline: true },
+					{ name: guild.translate('moderation/report:BY'), value: interaction.member, inline: true },
+					{ name: guild.translate('moderation/report:IN'), value: interaction.channel },
+					{ name: guild.translate('moderation/report:REASON'), value: reason },
+				)
 				.setTimestamp()
 				.setFooter(guild.name);
 			const repChannel = guild.channels.cache.get(settings.ModLogChannel);

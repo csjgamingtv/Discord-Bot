@@ -1,5 +1,6 @@
 // Dependencies
 const { functions: { checkMusic } } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +18,7 @@ class Loop extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['repeat'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'SPEAK'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.Speak],
 			description: 'Loops the song or queue.',
 			usage: 'loop [queue / song]',
 			cooldown: 3000,
@@ -25,7 +26,7 @@ class Loop extends Command {
 			slash: true,
 			options: [{
 				name: 'type',
-				type: 'STRING',
+				type: ApplicationCommandOptionType.String,
 				description: 'The entity you want to loop',
 				required: false,
 				choices: [
@@ -51,7 +52,7 @@ class Loop extends Command {
 	async run(bot, message) {
 		// check for DJ role, same VC and that a song is actually playing
 		const playable = checkMusic(message.member, bot);
-		if (typeof (playable) !== 'boolean') return message.channel.error(playable).then(m => m.timedDelete({ timeout: 10000 }));
+		if (typeof (playable) !== 'boolean') return message.channel.error(playable);
 
 		const player = bot.manager?.players.get(message.guild.id);
 

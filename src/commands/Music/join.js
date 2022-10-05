@@ -1,5 +1,5 @@
 // Dependencies
-const { MessageEmbed } = require('discord.js'),
+const { EmbedBuilder, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +17,7 @@ class Join extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['movehere'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'CONNECT', 'SPEAK'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.Connect, Flags.Speak],
 			description: 'Makes the bot join your voice channel.',
 			usage: 'join',
 			cooldown: 3000,
@@ -38,15 +38,15 @@ class Join extends Command {
 		// Make sure the user is in a voice channel
 		if (!message.member.voice.channel) return message.channel.error('music/join:NO_VC');
 
-		// Check if VC is full and bot can't join doesn't have (MANAGE_CHANNELS)
-		if (message.member.voice.channel.full && !message.member.voice.channel.permissionsFor(message.guild.me).has('MOVE_MEMBERS')) {
-			return message.channel.error('music/play:VC_FULL').then(m => m.timedDelete({ timeout: 10000 }));
+		// Check if VC is full and bot can't join doesn't have (Flags.ManageChannels)
+		if (message.member.voice.channel.full && !message.member.voice.channel.permissionsFor(message.guild.members.me).has(Flags.MoveMembers)) {
+			return message.channel.error('music/play:VC_FULL');
 		}
 
 		// Check if the member has role to interact with music plugin
 		if (message.guild.roles.cache.get(settings.MusicDJRole)) {
 			if (!message.member.roles.cache.has(settings.MusicDJRole)) {
-				return message.channel.error('misc:MISSING_ROLE').then(m => m.timedDelete({ timeout: 10000 }));
+				return message.channel.error('misc:MISSING_ROLE');
 			}
 		}
 
@@ -59,28 +59,28 @@ class Join extends Command {
 					textChannel: message.channel.id,
 					selfDeafen: true,
 				}).connect();
-				const embed = new MessageEmbed(bot, message.guild)
+				const embed = new EmbedBuilder()
 					.setColor(message.member.displayHexColor)
 					.setDescription(bot.translate('music/join:JOIN'));
 				message.channel.send({ embeds:[embed] });
 			} catch (err) {
 				if (message.deletable) message.delete();
 				bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-				message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+				message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 			}
 		} else {
 			// Move the bot to the new voice channel / update text channel
 			try {
 				await player.setVoiceChannel(message.member.voice.channel.id);
-				await player.setTextChannel(message.channel.id);
-				const embed = new MessageEmbed(bot, message.guild)
+				player.setTextChannel(message.channel.id);
+				const embed = new EmbedBuilder()
 					.setColor(message.member.displayHexColor)
 					.setDescription(message.translate('music/join:MOVED'));
 				message.channel.send({ embeds: [embed] });
 			} catch (err) {
 				if (message.deletable) message.delete();
 				bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-				message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+				message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 			}
 		}
 	}
@@ -102,8 +102,8 @@ class Join extends Command {
 		// Make sure the user is in a voice channel
 		if (!member.voice.channel) return interaction.reply({ embeds: [channel.error('music/join:NO_VC', { ERROR: null }, true)], ephemeral: true });
 
-		// Check if VC is full and bot can't join doesn't have (MANAGE_CHANNELS)
-		if (member.voice.channel.full && !member.voice.channel.permissionsFor(guild.me).has('MOVE_MEMBERS')) {
+		// Check if VC is full and bot can't join doesn't have (Flags.ManageChannels)
+		if (member.voice.channel.full && !member.voice.channel.permissionsFor(guild.members.me).has('MOVE_MEMBERS')) {
 			return interaction.reply({ embeds: [channel.error('music/join:VC_FULL', { ERROR: null }, true)], ephemeral: true });
 		}
 
@@ -123,7 +123,7 @@ class Join extends Command {
 					textChannel: channel.id,
 					selfDeafen: true,
 				}).connect();
-				const embed = new MessageEmbed(bot, guild)
+				const embed = new EmbedBuilder()
 					.setColor(member.displayHexColor)
 					.setDescription(bot.translate('music/join:JOIN'));
 				interaction.reply({ embeds:[embed] });
@@ -135,8 +135,8 @@ class Join extends Command {
 			// Move the bot to the new voice channel / update text channel
 			try {
 				await player.setVoiceChannel(member.voice.channel.id);
-				await player.setTextChannel(channel.id);
-				const embed = new MessageEmbed(bot, guild)
+				player.setTextChannel(channel.id);
+				const embed = new EmbedBuilder()
 					.setColor(member.displayHexColor)
 					.setDescription(bot.translate('music/join:MOVED'));
 				interaction.reply({ embeds:[embed] });

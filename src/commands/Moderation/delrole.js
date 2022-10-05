@@ -1,5 +1,6 @@
 // Dependencies
-const Command = require('../../structures/Command.js');
+const { ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	Command = require('../../structures/Command.js');
 
 /**
  * Delrole command
@@ -16,8 +17,8 @@ class DelRole extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['removerole', 'deleterole'],
-			userPermissions: ['MANAGE_ROLES'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS', 'MANAGE_ROLES'],
+			userPermissions: [Flags.ManageRoles],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.ManageRoles],
 			description: 'Delete a role from the server.',
 			usage: 'delrole <role>',
 			cooldown: 5000,
@@ -27,7 +28,7 @@ class DelRole extends Command {
 				{
 					name: 'role',
 					description: 'The role to delete.',
-					type: 'ROLE',
+					type: ApplicationCommandOptionType.Role,
 					required: true,
 				},
 			],
@@ -46,13 +47,13 @@ class DelRole extends Command {
 		if (settings.ModerationClearToggle && message.deletable) message.delete();
 
 		// Make sure a role name was entered
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/delrole:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/delrole:USAGE')) });
 
 		// find role based on mention, ID or name
 		const role = message.getRole();
 
 		// No role was found
-		if (!role[0]) return message.channel.error('moderation/delrole:MISSING').then(m => m.timedDelete({ timeout: 5000 }));
+		if (!role[0]) return message.channel.error('moderation/delrole:MISSING');
 
 		// delete role
 		try {
@@ -60,7 +61,7 @@ class DelRole extends Command {
 			message.channel.success('moderation/delrole:SUCCESS', { ROLE: delRole.name }).then(m => m.timedDelete({ timeout: 3000 }));
 		} catch (err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			return message.channel.error('moderation/delrole:FAIL').then(m => m.timedDelete({ timeout: 5000 }));
+			message.channel.error('moderation/delrole:FAIL');
 		}
 	}
 

@@ -1,6 +1,6 @@
 // Dependencies
-const { Embed } = require('../../utils'),
-	{ time: { read24hrFormat, getReadableTime }, functions: { checkMusic } } = require('../../utils'),
+const { Embed, time: { read24hrFormat, getReadableTime }, functions: { checkMusic } } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -18,7 +18,7 @@ class FastForward extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['ffw', 'fastforward'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'SPEAK'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.Speak],
 			description: 'Fast forwards the player by your specified amount.',
 			usage: 'fast-forward <time>',
 			cooldown: 3000,
@@ -27,7 +27,7 @@ class FastForward extends Command {
 			options: [{
 				name: 'amount',
 				description: 'The amount you want to fastforward.',
-				type: 'STRING',
+				type: ApplicationCommandOptionType.String,
 				required: false,
 			}],
 		});
@@ -42,11 +42,11 @@ class FastForward extends Command {
 	async run(bot, message) {
 		// check for DJ role, same VC and that a song is actually playing
 		const playable = checkMusic(message.member, bot);
-		if (typeof (playable) !== 'boolean') return message.channel.error(playable).then(m => m.timedDelete({ timeout: 10000 }));
+		if (typeof (playable) !== 'boolean') return message.channel.error(playable);
 
 		// Make sure song isn't a stream
 		const player = bot.manager?.players.get(message.guild.id);
-		if (!player.queue.current.isSeekable) return message.channel.error('music/fast-forward:LIVESTREAM').then(m => m.timedDelete({ timeout: 5000 }));
+		if (!player.queue.current.isSeekable) return message.channel.error('music/fast-forward:LIVESTREAM');
 
 		// update the time
 		const time = read24hrFormat(message.args[0] ?? '10');

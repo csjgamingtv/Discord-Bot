@@ -1,5 +1,6 @@
 // Dependencies
 const fs = require('fs'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,8 +18,8 @@ class EditRole extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['modifyrole'],
-			userPermissions: ['MANAGE_ROLES'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS', 'MANAGE_ROLES'],
+			userPermissions: [Flags.ManageRoles],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.ManageRoles],
 			description: 'Edit a role\'s data in the server',
 			usage: 'editrole <role name> <option> <value>',
 			cooldown: 5000,
@@ -28,20 +29,21 @@ class EditRole extends Command {
 				{
 					name: 'role',
 					description: 'The role to edit.',
-					type: 'ROLE',
+					type: ApplicationCommandOptionType.Role,
 					required: true,
 				},
 				{
 					name: 'key',
 					description: 'The key to edit.',
-					type: 'STRING',
+					type: ApplicationCommandOptionType.String,
 					choices: [...['name', 'colour', 'hoist'].map(i => ({ name: i, value: i }))],
 					required: true,
 				},
 				{
 					name: 'value',
 					description: 'The value to edit.',
-					type: 'STRING',
+					type: ApplicationCommandOptionType.String,
+					maxLength: 100,
 					required: true,
 				},
 			],
@@ -60,22 +62,22 @@ class EditRole extends Command {
 		if (settings.ModerationClearToggle && message.deletable) message.delete();
 
 		// make sure a role name was entered
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/editrole:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/editrole:USAGE')) });
 
 		// find role based on mention, ID or name
 		const role = message.getRole();
 
 		// No role was found
-		if (!role[0]) return message.channel.error('moderation/delrole:MISSING').then(m => m.timedDelete({ timeout: 5000 }));
+		if (!role[0]) return message.channel.error('moderation/delrole:MISSING');
 
-		if (message.member.permissions.has('ADMINISTRATOR') || role[0].comparePositionTo(message.guild.me.roles.highest) >= 0) {
+		if (message.member.permissions.has('ADMINISTRATOR') || role[0].comparePositionTo(message.guild.members.me.roles.highest) >= 0) {
 			switch (message.args[1].toLowerCase()) {
 				case 'colour':
 				case 'color':
 					fs.readFile('./src/assets/json/colours.json', async (err, data) => {
 						if (err) {
 							bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-							return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+							return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 						}
 
 						// Retrieve the names of colours
@@ -85,23 +87,23 @@ class EditRole extends Command {
 							role[0].edit({ color: colourNames[colour] ?? message.args[2] });
 							message.channel.success('moderation/editrole:SUCCESS').then(m => m.timedDelete({ timeout: 3000 }));
 						} else {
-							return message.channel.error('misc:ERROR_MESSAGE', { ERROR: 'Colour not found' }).then(m => m.timedDelete({ timeout: 5000 }));
+							return message.channel.error('misc:ERROR_MESSAGE', { ERROR: 'Colour not found' });
 						}
 					});
 					break;
 				case 'hoist':
-					if (!['true', 'false'].includes(message.args[2])) return message.channel.error('misc:ERROR_MESSAGE', { ERROR: 'Please provide the boolean as a value' }).then(m => m.timedDelete({ timeout: 5000 }));
+					if (!['true', 'false'].includes(message.args[2])) return message.channel.error('misc:ERROR_MESSAGE', { ERROR: 'Please provide the boolean as a value' });
 					role[0].edit({ hoist: message.args[2] });
 					message.channel.success('moderation/editrole:SUCCESS').then(m => m.timedDelete({ timeout: 3000 }));
 					break;
 				case 'name':
 				case 'rename':
-					if (message.args[2].length >= 100) return message.channel.error('misc:ERROR_MESSAGE', { ERROR: 'The role name is greater than the character limit of (100)' }).then(m => m.timedDelete({ timeout: 5000 }));
+					if (message.args[2].length >= 100) return message.channel.error('misc:ERROR_MESSAGE', { ERROR: 'The role name is greater than the character limit of (100)' });
 					role[0].edit({ name: message.args[2] });
 					message.channel.success('moderation/editrole:SUCCESS').then(m => m.timedDelete({ timeout: 3000 }));
 					break;
 				default:
-					message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/editrole:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+					message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/editrole:USAGE')) });
 			}
 		}
 	}
@@ -122,7 +124,7 @@ class EditRole extends Command {
 			key = args.get('key').value,
 			value = args.get('value').value;
 
-		if (member.permissions.has('ADMINISTRATOR') || role.comparePositionTo(guild.me.roles.highest) >= 0) {
+		if (member.permissions.has('ADMINISTRATOR') || role.comparePositionTo(guild.members.me.roles.highest) >= 0) {
 			switch (key) {
 				case 'colour':
 				case 'color':

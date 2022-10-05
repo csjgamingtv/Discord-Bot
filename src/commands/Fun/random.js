@@ -1,6 +1,6 @@
 // Dependencies
 const max = 100000,
-	{ MessageEmbed } = require('discord.js'),
+	{ EmbedBuilder, Colors, ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -16,7 +16,7 @@ class Random extends Command {
 		super(bot, {
 			name: 'random',
 			dirname: __dirname,
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Replies with a random number.',
 			usage: 'random <LowNum> <HighNum>',
 			cooldown: 1000,
@@ -25,7 +25,7 @@ class Random extends Command {
 			options: [{
 				name: 'min',
 				description: 'The minimum number',
-				type: 'INTEGER',
+				type: ApplicationCommandOptionType.Integer,
 				minValue: 0,
 				maxValue: 2147483647,
 				required: true,
@@ -33,8 +33,8 @@ class Random extends Command {
 			{
 				name: 'max',
 				description: 'The maximum number',
-				type: 'INTEGER',
-				minValue: 0,
+				type: ApplicationCommandOptionType.Integer,
+				minValue: 1,
 				maxValue: 2147483647,
 				required: true,
 			}],
@@ -57,19 +57,19 @@ class Random extends Command {
 		// Make sure both entries are there
 		if (!num1 || !num2) {
 			if (message.deletable) message.delete();
-			return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('fun/random:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+			return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('fun/random:USAGE')) });
 		}
 
 		// Make sure they follow correct rules
 		if ((num2 < num1) || (num1 === num2) || (num2 > max) || (num1 < 0)) {
 			if (message.deletable) message.delete();
-			return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('fun/random:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+			return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('fun/random:USAGE')) });
 		}
 
 		// send result
 		const r = Math.floor(Math.random() * (num2 - num1) + num1) + 1;
-		const embed = new MessageEmbed()
-			.setColor('RANDOM')
+		const embed = new EmbedBuilder()
+			.setColor(Colors.Random)
 			.setDescription(message.translate('fun/random:RESPONSE', { NUMBER: r }));
 		message.channel.send({ embeds: [embed] });
 	}

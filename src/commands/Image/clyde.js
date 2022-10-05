@@ -1,6 +1,7 @@
 // Dependencies
 const { Embed } = require('../../utils'),
 	fetch = require('node-fetch'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -16,7 +17,7 @@ class Clyde extends Command {
 		super(bot, {
 			name: 'clyde',
 			dirname: __dirname,
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Create a fake Clyde message.',
 			usage: 'clyde <text>',
 			cooldown: 5000,
@@ -25,7 +26,8 @@ class Clyde extends Command {
 			options: [{
 				name: 'text',
 				description: 'Phrase to use',
-				type: 'STRING',
+				type: ApplicationCommandOptionType.String,
+				maxLength: 71,
 				required: true,
 			}],
 		});
@@ -43,10 +45,10 @@ class Clyde extends Command {
 		const text = message.args.join(' ');
 
 		// make sure text was entered
-		if (!text) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('image/clyde:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (!text) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('image/clyde:USAGE')) });
 
 		// make sure the text isn't longer than 70 characters
-		if (text.length >= 71) return message.channel.error('image/clyde:TOO_LONG').then(m => m.timedDelete({ timeout: 5000 }));
+		if (text.length >= 71) return message.channel.error('image/clyde:TOO_LONG');
 
 		// send 'waiting' message to show bot has recieved message
 		const msg = await message.channel.send(message.translate('misc:GENERATING_IMAGE', {
@@ -63,7 +65,7 @@ class Clyde extends Command {
 		} catch(err) {
 			if (message.deletable) message.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 		}
 		msg.delete();
 	}
@@ -79,9 +81,6 @@ class Clyde extends Command {
 	async callback(bot, interaction, guild, args) {
 		const text = args.get('text').value;
 		const channel = guild.channels.cache.get(interaction.channelId);
-
-		// make sure the text isn't longer than 80 characters
-		if (text.length >= 71) return interaction.reply({ embeds: [channel.error('image/clyde:TOO_LONG', {}, true)], ephemeral: true });
 
 		await interaction.reply({ content: guild.translate('misc:GENERATING_IMAGE', {
 			EMOJI: bot.customEmojis['loading'] }) });

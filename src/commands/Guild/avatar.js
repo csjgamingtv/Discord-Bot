@@ -1,5 +1,7 @@
 // Dependencies
 const { Embed } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags }, GuildMember } = require('discord.js'),
+	{ ChannelType } = require('discord-api-types/v10'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +19,7 @@ class Avatar extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['av'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Displays user\'s avatar.',
 			usage: 'avatar [user]',
 			cooldown: 2000,
@@ -26,7 +28,7 @@ class Avatar extends Command {
 			options: [{
 				name: 'user',
 				description: 'The user you want the avatar of',
-				type: 'USER',
+				type: ApplicationCommandOptionType.User,
 				required: false,
 			}],
 		});
@@ -72,10 +74,16 @@ class Avatar extends Command {
 	 * @readonly
 	*/
 	reply(bot, interaction, channel, userID) {
-		const member = channel.guild.members.cache.get(userID);
-		const embed = this.avatarEmbed(bot, channel.guild, member);
+		let member;
+		if (channel.type == ChannelType.DM) {
+			member = new GuildMember(bot, bot.users.cache.get(userID));
+			member._patch({ user: bot.users.cache.get(userID) });
+		} else {
+			member = channel.guild.members.cache.get(userID);
+		}
 
 		// send embed
+		const embed = this.avatarEmbed(bot, false, member);
 		return interaction.reply({ embeds: [embed] });
 	}
 

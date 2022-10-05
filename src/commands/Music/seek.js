@@ -1,5 +1,5 @@
 // Dependencies
-const { MessageEmbed } = require('discord.js'),
+const { EmbedBuilder, ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	{ time: { read24hrFormat }, functions: { checkMusic } } = require('../../utils'),
 	Command = require('../../structures/Command.js');
 
@@ -17,7 +17,7 @@ class Seek extends Command {
 			name: 'seek',
 			guildOnly: true,
 			dirname: __dirname,
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'SPEAK'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.Speak],
 			description: 'Sets the playing track\'s position to the specified position.',
 			usage: 'seek <time>',
 			cooldown: 3000,
@@ -26,7 +26,7 @@ class Seek extends Command {
 			options: [{
 				name: 'time',
 				description: 'The time you want to seek to.',
-				type: 'STRING',
+				type: ApplicationCommandOptionType.String,
 				required: true,
 			}],
 		});
@@ -41,14 +41,14 @@ class Seek extends Command {
 	async run(bot, message, settings) {
 		// check to make sure bot can play music based on permissions
 		const playable = checkMusic(message.member, bot);
-		if (typeof (playable) !== 'boolean') return message.channel.error(playable).then(m => m.timedDelete({ timeout: 10000 }));
+		if (typeof (playable) !== 'boolean') return message.channel.error(playable);
 
 		// Make sure song isn't a stream
 		const player = bot.manager?.players.get(message.guild.id);
-		if (!player.queue.current.isSeekable) return message.channel.error('music/seek:LIVSTREAM').then(m => m.timedDelete({ timeout: 10000 }));
+		if (!player.queue.current.isSeekable) return message.channel.error('music/seek:LIVSTREAM');
 
 		// Make sure a time was inputted
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('music/seek:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('music/seek:USAGE')) });
 
 		// update the time
 		const time = read24hrFormat((message.args[0]) ? message.args[0] : '10');
@@ -57,7 +57,7 @@ class Seek extends Command {
 			message.channel.send(message.translate('music/seek:INVALID', { TIME: new Date(player.queue.current.duration).toISOString().slice(11, 19) }));
 		} else {
 			player.seek(time);
-			const embed = new MessageEmbed()
+			const embed = new EmbedBuilder()
 				.setColor(message.member.displayHexColor)
 				.setDescription(message.translate('music/seek:UPDATED', { TIME: new Date(time).toISOString().slice(14, 19) }));
 			message.channel.send({ embeds: [embed] });
@@ -88,7 +88,7 @@ class Seek extends Command {
 			return interaction.reply({ ephemeral: true, embeds: [channel.error('music/seek:INVALID', { TIME: new Date(player.queue.current.duration).toISOString().slice(11, 19) }, true)] });
 		} else {
 			player.seek(time);
-			const embed = new MessageEmbed()
+			const embed = new EmbedBuilder()
 				.setColor(member.displayHexColor)
 				.setDescription(bot.translate('music/seek:UPDATED', { TIME: new Date(time).toISOString().slice(14, 19) }));
 			interaction.reply({ embeds: [embed] });

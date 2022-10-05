@@ -2,6 +2,7 @@
 const	{ Embed } = require('../../utils'),
 	{ PlaylistSchema } = require('../../database/models'),
 	{ TrackUtils } = require('erela.js'),
+	{ PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -19,7 +20,7 @@ class PLoad extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['playlist-load'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'CONNECT', 'SPEAK'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.Connect, Flags.Speak],
 			description: 'Load a playlist',
 			usage: 'p-load <playlist name>',
 			cooldown: 3000,
@@ -35,7 +36,7 @@ class PLoad extends Command {
   */
 	async run(bot, message, settings) {
 		// make sure a playlist name was entered
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('music/p-load:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('music/p-load:USAGE')) });
 
 		// Check if the member has role to interact with music plugin
 		if (message.guild.roles.cache.get(settings.MusicDJRole)) {
@@ -49,12 +50,12 @@ class PLoad extends Command {
 
 		// Check that user is in the same voice channel
 		if (bot.manager?.players.get(message.guild.id)) {
-			if (message.member.voice.channel.id != bot.manager?.players.get(message.guild.id).voiceChannel) return message.channel.error('misc:NOT_VOICE').then(m => m.timedDelete({ timeout: 10000 }));
+			if (message.member.voice.channel.id != bot.manager?.players.get(message.guild.id).voiceChannel) return message.channel.error('misc:NOT_VOICE');
 		}
 
-		// Check if VC is full and bot can't join doesn't have (MANAGE_CHANNELS)
-		if (message.member.voice.channel.full && !message.member.voice.channel.permissionsFor(message.guild.me).has('MOVE_MEMBERS')) {
-			return message.channel.error('music/play:VC_FULL').then(m => m.timedDelete({ timeout: 10000 }));
+		// Check if VC is full and bot can't join doesn't have (Flags.ManageChannels)
+		if (message.member.voice.channel.full && !message.member.voice.channel.permissionsFor(message.guild.members.me).has(Flags.MoveMembers)) {
+			return message.channel.error('music/play:VC_FULL');
 		}
 
 		// send waiting message
@@ -69,7 +70,7 @@ class PLoad extends Command {
 			if (err) {
 				if (message.deletable) message.delete();
 				bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-				return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+				return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 			}
 
 			if (p) {
@@ -86,7 +87,7 @@ class PLoad extends Command {
 				} catch (err) {
 					if (message.deletable) message.delete();
 					bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-					return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+					return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 				}
 
 				// add songs to queue

@@ -103,11 +103,13 @@ module.exports = Object.defineProperties(Message.prototype, {
 				this.guild.roles.cache.forEach(r => {
 					roleList.push(r.name);
 				});
-				const match = findBestMatch(this.args.join(' '), roleList);
-				if (match.bestMatch.rating != 0) {
-					const username = match.bestMatch.target,
-						role = this.guild.roles.cache.find(r => r.name == username);
-					roles.push(role);
+				if (roleList.length != this.args.length) {
+					const match = findBestMatch(this.args.join(' '), roleList);
+					if (match.bestMatch.rating != 0) {
+						const username = match.bestMatch.target,
+							role = this.guild.roles.cache.find(r => r.name == username);
+						roles.push(role);
+					}
 				}
 			}
 			// return the array of roles
@@ -128,7 +130,7 @@ module.exports = Object.defineProperties(Message.prototype, {
 				}
 
 				// no file with the correct format was found
-				if (!file.length[0]) return this.channel.error('misc:INVALID_FILE').then(m => m.timedDelete({ timeout: 10000 }));
+				if (file.length === 0) return this.channel.error('misc:INVALID_FILE').then(m => m.timedDelete({ timeout: 10000 }));
 			}
 
 			// check for message link

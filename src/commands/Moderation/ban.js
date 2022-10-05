@@ -1,7 +1,7 @@
 // Dependencies
-const { Embed } = require('../../utils'),
+const { Embed, time: { getTotalTime } } = require('../../utils'),
 	{ timeEventSchema } = require('../../database/models'),
-	{ time: { getTotalTime } } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -18,8 +18,8 @@ class Ban extends Command {
 			name: 'ban',
 			guildOnly: true,
 			dirname: __dirname,
-			userPermissions: ['BAN_MEMBERS'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS', 'BAN_MEMBERS'],
+			userPermissions: [Flags.BanMembers],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.BanMembers],
 			description: 'Ban a user.',
 			usage: 'ban <user> [reason] [time]',
 			cooldown: 5000,
@@ -29,19 +29,19 @@ class Ban extends Command {
 				{
 					name: 'user',
 					description: 'The user to ban.',
-					type: 'USER',
+					type: ApplicationCommandOptionType.User,
 					required: true,
 				},
 				{
 					name: 'reason',
 					description: 'The reason for the ban.',
-					type: 'STRING',
+					type: ApplicationCommandOptionType.String,
 					required: false,
 				},
 				{
 					name: 'time',
 					description: 'The time till they are unbanned.',
-					type: 'STRING',
+					type: ApplicationCommandOptionType.String,
 					required: false,
 				},
 			],
@@ -60,7 +60,7 @@ class Ban extends Command {
 		if (settings.ModerationClearToggle && message.deletable) message.delete();
 
 		// check if a user was entered
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/ban:USAGE')) }).then(m => m.timedDelete({ timeout: 10000 }));
+		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/ban:USAGE')) });
 
 		// Get user and reason
 		const reason = message.args[1] ? message.args.splice(1, message.args.length).join(' ') : message.translate('misc:NO_REASON');
@@ -69,14 +69,14 @@ class Ban extends Command {
 		const members = await message.getMember(false);
 
 		// Make sure atleast a guildmember was found
-		if (!members[0]) return message.channel.error('moderation/ban:MISSING_USER').then(m => m.timedDelete({ timeout: 10000 }));
+		if (!members[0]) return message.channel.error('moderation/ban:MISSING_USER');
 
 		// Make sure user isn't trying to punish themselves
-		if (members[0].user.id == message.author.id) return message.channel.error('misc:SELF_PUNISH').then(m => m.timedDelete({ timeout: 10000 }));
+		if (members[0].user.id == message.author.id) return message.channel.error('misc:SELF_PUNISH');
 
 		// Make sure user does not have ADMINISTRATOR permissions or has a higher role
-		if (members[0].permissions.has('ADMINISTRATOR') || members[0].roles.highest.comparePositionTo(message.guild.me.roles.highest) >= 0) {
-			return message.channel.error('moderation/ban:TOO_POWERFUL').then(m => m.timedDelete({ timeout: 10000 }));
+		if (members[0].permissions.has('ADMINISTRATOR') || members[0].roles.highest.comparePositionTo(message.guild.members.me.roles.highest) >= 0) {
+			return message.channel.error('moderation/ban:TOO_POWERFUL');
 		}
 
 		// Ban user with reason and check if timed ban
@@ -88,8 +88,10 @@ class Ban extends Command {
 					.setColor(15158332)
 					.setThumbnail(message.guild.iconURL())
 					.setDescription(message.translate('moderation/ban:DESC', { NAME: message.guild.name }))
-					.addField(message.translate('moderation/ban:BAN_BY'), message.author.tag, true)
-					.addField(message.translate('misc:REASON'), reason, true);
+					.addFields(
+						{ name: message.translate('moderation/ban:BAN_BY'), value: message.author.tag, inline: true },
+						{ name: message.translate('misc:REASON'), value: reason, inline: true },
+					);
 				await members[0].send({ embeds: [embed] });
 				// eslint-disable-next-line no-empty
 			} catch (e) {}
@@ -128,7 +130,7 @@ class Ban extends Command {
 		} catch (err) {
 			if (message.deletable) message.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 		}
 	}
 
@@ -146,11 +148,11 @@ class Ban extends Command {
 			reason = args.get('reason')?.value;
 
 		// Make sure user isn't trying to punish themselves
-		if (member.user.id == interaction.user.id) return interaction.reply({ embeds: [channel.error('misc:SELF_PUNISH', {}, true)], fetchReply:true }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (member.user.id == interaction.user.id) return interaction.reply({ embeds: [channel.error('misc:SELF_PUNISH', {}, true)], ephermal: true });
 
 		// Make sure user does not have ADMINISTRATOR permissions or has a higher role
-		if (member.permissions.has('ADMINISTRATOR') || member.roles.highest.comparePositionTo(guild.me.roles.highest) >= 0) {
-			return interaction.reply({ embeds: [channel.error('moderation/ban:TOO_POWERFUL', {}, true)], fetchReply:true }).then(m => m.timedDelete({ timeout: 10000 }));
+		if (member.permissions.has('ADMINISTRATOR') || member.roles.highest.comparePositionTo(guild.members.me.roles.highest) >= 0) {
+			return interaction.reply({ embeds: [channel.error('moderation/ban:TOO_POWERFUL', {}, true)], ephermal: true });
 		}
 
 		// Ban user with reason and check if timed ban
@@ -162,8 +164,10 @@ class Ban extends Command {
 					.setColor(15158332)
 					.setThumbnail(guild.iconURL())
 					.setDescription(guild.translate('moderation/ban:DESC', { NAME: guild.name }))
-					.addField(guild.translate('moderation/ban:BAN_BY'), interaction.user.tag, true)
-					.addField(guild.translate('misc:REASON'), reason, true);
+					.addFields(
+						{ name: guild.translate('moderation/ban:BAN_BY'), value: interaction.user.tag, inline: true },
+						{ name: guild.translate('misc:REASON'), value: reason, inline: true },
+					);
 				await member.send({ embeds: [embed] });
 				// eslint-disable-next-line no-empty
 			} catch (e) {}
@@ -176,7 +180,7 @@ class Ban extends Command {
 			const possibleTime = args.get('time')?.value;
 			if (possibleTime.endsWith('d') || possibleTime.endsWith('h') || possibleTime.endsWith('m') || possibleTime.endsWith('s')) {
 				const { error, success: time } = getTotalTime(possibleTime);
-				if (error) return interaction.reply({ embeds: [channel.error(error, null, true)] });
+				if (error) return interaction.reply({ embeds: [channel.error(error, null, true)], ephermal: true });
 
 				// connect to database
 				const newEvent = new timeEventSchema({

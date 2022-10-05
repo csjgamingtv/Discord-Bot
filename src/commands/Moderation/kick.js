@@ -1,5 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -16,8 +17,8 @@ class Kick extends Command {
 			name: 'kick',
 			guildOnly: true,
 			dirname: __dirname,
-			userPermissions: ['KICK_MEMBERS'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS', 'KICK_MEMBERS'],
+			userPermissions: [Flags.KickMembers],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.KickMembers],
 			description: 'Kick a user.',
 			usage: 'kick <user> [reason]',
 			cooldown: 5000,
@@ -27,13 +28,13 @@ class Kick extends Command {
 				{
 					name: 'user',
 					description: 'The user to kick.',
-					type: 'USER',
+					type: ApplicationCommandOptionType.User,
 					required: true,
 				},
 				{
 					name: 'reason',
 					description: 'The reason to kick user.',
-					type: 'STRING',
+					type: ApplicationCommandOptionType.String,
 					required: false,
 				},
 			],
@@ -52,23 +53,23 @@ class Kick extends Command {
 		if (settings.ModerationClearToggle && message.deletable) message.delete();
 
 		// check if a user was entered
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/kick:USAGE')) }).then(m => m.timedDelete({ timeout: 10000 }));
+		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/kick:USAGE')) });
 
 
 		// Get members mentioned in message
 		const members = await message.getMember(false);
 
 		// Make sure atleast a guildmember was found
-		if (!members[0]) return message.channel.error('moderation/ban:MISSING_USER').then(m => m.timedDelete({ timeout: 10000 }));
+		if (!members[0]) return message.channel.error('moderation/ban:MISSING_USER');
 
 		const	reason = message.args[1] ? message.args.splice(1, message.args.length).join(' ') : message.translate('misc:NO_REASON');
 
 		// Make sure user isn't trying to punish themselves
-		if (members[0].user.id == message.author.id) return message.channel.error('misc:SELF_PUNISH').then(m => m.timedDelete({ timeout: 10000 }));
+		if (members[0].user.id == message.author.id) return message.channel.error('misc:SELF_PUNISH');
 
 		// Make sure user does not have ADMINISTRATOR permissions or has a higher role
-		if (members[0].permissions.has('ADMINISTRATOR') || members[0].roles.highest.comparePositionTo(message.guild.me.roles.highest) >= 0) {
-			return message.channel.error('moderation/kick:TOO_POWERFUL').then(m => m.timedDelete({ timeout: 10000 }));
+		if (members[0].permissions.has('ADMINISTRATOR') || members[0].roles.highest.comparePositionTo(message.guild.members.me.roles.highest) >= 0) {
+			return message.channel.error('moderation/kick:TOO_POWERFUL');
 		}
 
 		// Kick user with reason
@@ -80,19 +81,21 @@ class Kick extends Command {
 					.setColor(15158332)
 					.setThumbnail(message.guild.iconURL())
 					.setDescription(message.translate('moderation/kick:DESC', { NAME: message.guild.name }))
-					.addField(message.translate('moderation/kick:KICKED'), message.author.tag, true)
-					.addField(message.translate('misc:REASON'), reason, true);
+					.addFields(
+						{ name: message.translate('moderation/kick:KICKED'), value: message.author.tag, inline: true },
+						{ name: message.translate('misc:REASON'), value: reason, inline: true },
+					);
 				await members[0].send({ embeds: [embed] });
 				// eslint-disable-next-line no-empty
 			} catch (e) {}
 
 			// kick user from guild
 			await members[0].kick({ reason: reason });
-			message.channel.success('moderation/kick:SUCCESS', { USER: members[0].user }).then(m => m.timedDelete({ timeout: 3000 }));
+			message.channel.success('moderation/kick:SUCCESS', { USER: members[0].user });
 		} catch (err) {
 			if (message.deletable) message.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 		}
 	}
 
@@ -113,7 +116,7 @@ class Kick extends Command {
 		if (member.user.id == interaction.user.id) return interaction.reply({ embeds: [channel.error('misc:SELF_PUNISH', null, true)] });
 
 		// Make sure user does not have ADMINISTRATOR permissions or has a higher role
-		if (member.permissions.has('ADMINISTRATOR') || member.roles.highest.comparePositionTo(guild.me.roles.highest) >= 0) {
+		if (member.permissions.has('ADMINISTRATOR') || member.roles.highest.comparePositionTo(guild.members.me.roles.highest) >= 0) {
 			return interaction.reply({ embeds: [channel.error('moderation/kick:TOO_POWERFUL', null, true)] });
 		}
 
@@ -126,8 +129,10 @@ class Kick extends Command {
 					.setColor(15158332)
 					.setThumbnail(guild.iconURL())
 					.setDescription(guild.translate('moderation/kick:DESC', { NAME: guild.name }))
-					.addField(guild.translate('moderation/kick:KICKED'), interaction.user.tag, true)
-					.addField(guild.translate('misc:REASON'), reason, true);
+					.addFields(
+						{ name: guild.translate('moderation/kick:KICKED'), value:  interaction.user.tag, inline: true },
+						{ name: guild.translate('misc:REASON'), value: reason, inline: true },
+					);
 				await member.send({ embeds: [embed] });
 				// eslint-disable-next-line no-empty
 			} catch (e) {}

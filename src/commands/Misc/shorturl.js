@@ -1,5 +1,6 @@
 // Dependencies
 const { shorten } = require('tinyurl'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -16,7 +17,7 @@ class ShortURL extends Command {
 			name: 'shorturl',
 			dirname: __dirname,
 			aliases: ['surl', 'short-url'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Creates a shorturl on the URL you sent.',
 			usage: 'shorturl',
 			cooldown: 3000,
@@ -25,7 +26,7 @@ class ShortURL extends Command {
 			options: [{
 				name: 'url',
 				description: 'The specified URL to shorten.',
-				type: 'STRING',
+				type: ApplicationCommandOptionType.String,
 				required: true,
 			}],
 		});
@@ -53,7 +54,7 @@ class ShortURL extends Command {
 			if (message.deletable) message.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
 			msg.delete();
-			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 		}
 	}
 
@@ -66,11 +67,11 @@ class ShortURL extends Command {
  	 * @readonly
 	*/
 	async callback(bot, interaction, guild, args) {
-		const channel = guild.channels.cache.get(interaction.channelId);
-		const link = args.get('url').value;
+		const channel = guild.channels.cache.get(interaction.channelId),
+			link = args.get('url').value;
 
 		try {
-			await shorten(link, async function(res) {
+			await shorten(link, function(res) {
 				return interaction.reply({ content: res });
 			});
 		} catch (err) {

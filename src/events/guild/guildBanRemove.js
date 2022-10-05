@@ -23,7 +23,6 @@ class GuildBanRemove extends Event {
 	async run(bot, guildBan) {
 		// Make sure all relevant data is fetched
 		try {
-			if (guildBan.partial) await guildBan.fetch();
 			if (guildBan.user.partial) await guildBan.user.fetch();
 		} catch (err) {
 			if (['Missing Permissions', 'Missing Access'].includes(err.message)) return;
@@ -42,7 +41,7 @@ class GuildBanRemove extends Event {
 		// Check if event guildBanRemove is for logging
 		if (settings.ModLogEvents?.includes('GUILDBANREMOVE') && settings.ModLog) {
 			const embed = new Embed(bot, guild)
-				.setDescription(`User: ${user.toString()}`)
+				.setDescription(`User: ${user}`)
 				.setColor(15158332)
 				.setAuthor({ name: 'User unbanned:', iconURL: user.displayAvatarURL() })
 				.setThumbnail(user.displayAvatarURL())

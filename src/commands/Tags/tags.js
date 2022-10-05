@@ -1,5 +1,6 @@
 // Dependencies
-const Command = require('../../structures/Command.js');
+const { PermissionsBitField: { Flags } } = require('discord.js'),
+	Command = require('../../structures/Command.js');
 
 /**
  * Tags command
@@ -16,8 +17,8 @@ class Tags extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['modifytags', 'tag'],
-			userPermissions: ['MANAGE_GUILD'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS'],
+			userPermissions: [Flags.ManageGuild],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Edit server\'s tags',
 			usage: 'tag <add/del/edit/view> <required paramters>',
 			cooldown: 5000,
@@ -37,7 +38,7 @@ class Tags extends Command {
 		if (settings.ModerationClearToggle && message.deletable) message.delete();
 
 		// make sure something was entered
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('tags/tags:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('tags/tags:USAGE')) });
 
 		// run subcommands
 		const option = message.args[0].toLowerCase();
@@ -58,7 +59,7 @@ class Tags extends Command {
 				break;
 			default:
 			// delete message
-				return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('tags/tags:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+				return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('tags/tags:USAGE')) });
 		}
 	}
 }

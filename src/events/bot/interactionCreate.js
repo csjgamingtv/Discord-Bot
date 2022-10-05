@@ -20,17 +20,18 @@ class InteractionCreate extends Event {
 	 * @readonly
 	*/
 	async run(bot, interaction) {
-		// The interaction is a slash command
-		if (interaction.isCommand()) return bot.emit('slashCreate', interaction);
 
-		// The interaction is a button
+		// Check if it's message context menu
+		if (interaction.isMessageContextMenuCommand() || interaction.isUserContextMenuCommand()) return bot.emit('clickMenu', interaction);
+
+		// Check if it's autocomplete
+		if(interaction.isAutocomplete()) return bot.emit('autoComplete', interaction);
+
+		// Check if it's a button
 		if (interaction.isButton()) return bot.emit('clickButton', interaction);
 
-		// the interaction is a context menu
-		if (interaction.isContextMenu()) return bot.emit('clickMenu', interaction);
-
-		// the interaction is an autocomplete field
-		if (interaction.isAutocomplete()) return bot.emit('autoComplete', interaction);
+		// Check if it's a slash command
+		if (interaction.isCommand()) return bot.emit('slashCreate', interaction);
 	}
 }
 

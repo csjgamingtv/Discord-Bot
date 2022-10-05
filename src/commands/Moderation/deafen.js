@@ -1,5 +1,6 @@
 // Dependencies
-const Command = require('../../structures/Command.js');
+const { ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	Command = require('../../structures/Command.js');
 
 /**
  * Deafen command
@@ -15,8 +16,8 @@ class Deafen extends Command {
 			name: 'deafen',
 			guildOnly: true,
 			dirname: __dirname,
-			userPermissions: ['DEAFEN_MEMBERS'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS', 'DEAFEN_MEMBERS'],
+			userPermissions: [Flags.DeafenMembers],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.DeafenMembers],
 			description: 'Deafen a user.',
 			usage: 'deafen <user>',
 			cooldown: 2000,
@@ -26,7 +27,7 @@ class Deafen extends Command {
 				{
 					name: 'user',
 					description: 'The user to deafen.',
-					type: 'USER',
+					type: ApplicationCommandOptionType.User,
 					required: true,
 				},
 			],
@@ -45,25 +46,24 @@ class Deafen extends Command {
 		if (settings.ModerationClearToggle && message.deletable) message.delete();
 
 		// check if a user was entered
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/deafen:USAGE')) }).then(m => m.timedDelete({ timeout: 10000 }));
-
+		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('moderation/deafen:USAGE')) });
 
 		// Get members mentioned in message
 		const members = await message.getMember(false);
 
 		// Make sure atleast a guildmember was found
-		if (!members[0]) return message.channel.error('moderation/ban:MISSING_USER').then(m => m.timedDelete({ timeout: 10000 }));
+		if (!members[0]) return message.channel.error('moderation/ban:MISSING_USER');
 
 		// Make sure that the user is in a voice channel
 		if (members[0]?.voice.channel) {
 			// Make sure bot can deafen members
-			if (!members[0].voice.channel.permissionsFor(bot.user).has('DEAFEN_MEMBERS')) {
+			if (!members[0].voice.channel.permissionsFor(bot.user).has(Flags.DeafenMembers)) {
 				bot.logger.error(`Missing permission: \`DEAFEN_MEMBERS\` in [${message.guild.id}].`);
-				return message.channel.error('misc:MISSING_PERMISSION', { PERMISSIONS: message.translate('permissions:DEAFEN_MEMBERS') }).then(m => m.timedDelete({ timeout: 10000 }));
+				return message.channel.error('misc:MISSING_PERMISSION', { PERMISSIONS: message.translate('permissions:DEAFEN_MEMBERS') });
 			}
 
 			// Make sure user isn't trying to punish themselves
-			if (members[0].user.id == message.author.id) return message.channel.error('misc:SELF_PUNISH').then(m => m.timedDelete({ timeout: 10000 }));
+			if (members[0].user.id == message.author.id) return message.channel.error('misc:SELF_PUNISH');
 
 			try {
 				await members[0].voice.setDeaf(true);
@@ -71,7 +71,7 @@ class Deafen extends Command {
 			} catch(err) {
 				if (message.deletable) message.delete();
 				bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-				message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+				message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 			}
 		} else {
 			message.channel.error('moderation/deafen:NOT_VC');
@@ -93,7 +93,7 @@ class Deafen extends Command {
 		// Make sure that the user is in a voice channel
 		if (member.voice.channel) {
 			// Make sure bot can deafen members
-			if (!member.voice.channel.permissionsFor(bot.user).has('DEAFEN_MEMBERS')) {
+			if (!member.voice.channel.permissionsFor(bot.user).has(Flags.DeafenMembers)) {
 				bot.logger.error(`Missing permission: \`DEAFEN_MEMBERS\` in [${guild.id}].`);
 				return interaction.reply({ embeds: [channel.error('misc:MISSING_PERMISSION', { PERMISSIONS: guild.translate('permissions:DEAFEN_MEMBERS') }, true)], fetchReply: true }).then(m => m.timedDelete({ timeout: 10000 }));
 			}

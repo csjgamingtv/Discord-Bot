@@ -1,5 +1,6 @@
 // Dependencies
-const	Command = require('../../structures/Command.js');
+const	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	Command = require('../../structures/Command.js');
 
 /**
  * Giveaway delete command
@@ -16,18 +17,18 @@ class GiveawayDelete extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['giveaway-delete', 'gdelete'],
-			userPermissions: ['MANAGE_GUILD'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+			userPermissions: [Flags.ManageGuild],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Delete a giveaway',
 			usage: 'g-delete <messageID>',
 			cooldown: 2000,
 			examples: ['g-delete 818821436255895612'],
-			slash: true,
+			slash: false,
 			options: [
 				{
 					name: 'id',
 					description: 'Message ID of the giveaway.',
-					type: 'NUMBER',
+					type: ApplicationCommandOptionType.Integer,
 					required: true,
 				},
 			],
@@ -46,14 +47,13 @@ class GiveawayDelete extends Command {
 		if (settings.ModerationClearToggle && message.deletable) message.delete();
 
 		// Make sure the message ID of the giveaway embed is entered
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('giveaway/g-delete:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('giveaway/g-delete:USAGE')) });
 
 		// Delete the giveaway
 		const messageID = message.args[0];
 		try {
-			await bot.giveawaysManager.delete(messageID).then(() => {
-				message.channel.send(bot.translate('giveaway/g-delete:SUCCESS_GIVEAWAY'));
-			});
+			await bot.giveawaysManager.delete(messageID);
+			message.channel.send(bot.translate('giveaway/g-delete:SUCCESS_GIVEAWAY'));
 		} catch (err) {
 			bot.logger.error(`Command: 'g-delete' has error: ${err}.`);
 			message.channel.send(bot.translate('giveaway/g-delete:UNKNOWN_GIVEAWAY', { ID: messageID }));

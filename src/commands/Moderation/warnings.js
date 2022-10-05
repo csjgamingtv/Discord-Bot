@@ -1,6 +1,7 @@
 // Dependencies
 const { Embed } = require('../../utils'),
 	{ WarningSchema } = require('../../database/models'),
+	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -18,7 +19,7 @@ class Warnings extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['warns'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Display number of warnings a user has.',
 			usage: 'warnings [user]',
 			cooldown: 2000,
@@ -28,7 +29,7 @@ class Warnings extends Command {
 				{
 					name: 'user',
 					description: 'The user to mute.',
-					type: 'USER',
+					type: ApplicationCommandOptionType.User,
 					required: true,
 				},
 			],
@@ -58,7 +59,7 @@ class Warnings extends Command {
 
 			if (!warnings[0]) {
 				// There are no warnings with this user
-				message.channel.error('moderation/warnings:NO_WARNINGS').then(m => m.timedDelete({ timeout: 3500 }));
+				message.channel.error('moderation/warnings:NO_WARNINGS');
 			} else {
 				// Warnings have been found
 				let list = `Warnings (${warnings.length}):\n`;
@@ -75,7 +76,7 @@ class Warnings extends Command {
 		} catch (err) {
 			if (message.deletable) message.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 		}
 	}
 

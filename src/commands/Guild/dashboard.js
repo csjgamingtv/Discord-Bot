@@ -1,5 +1,5 @@
 // Dependencies
-const { MessageActionRow, MessageButton } = require('discord.js'),
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +17,7 @@ class Dashboard extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['db'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Sends a link to your Server\'s dashboard.',
 			usage: 'dashboard',
 			cooldown: 2000,
@@ -32,11 +32,11 @@ class Dashboard extends Command {
  	 * @readonly
 	*/
 	async run(bot, message) {
-		const row = new MessageActionRow()
+		const row = new ActionRowBuilder()
 			.addComponents(
-				new MessageButton()
+				new ButtonBuilder()
 					.setLabel('Access the dashboard')
-					.setStyle('LINK')
+					.setStyle(ButtonStyle.Link)
 					.setURL(`${bot.config.websiteURL}/dashboard/${message.guild.id}`),
 			);
 		message.channel.send({ content: 'There you go.', components: [row] });
@@ -50,11 +50,11 @@ class Dashboard extends Command {
  	 * @readonly
 	*/
 	async callback(bot, interaction, guild) {
-		const row = new MessageActionRow()
+		const row = new ActionRowBuilder()
 			.addComponents(
-				new MessageButton()
+				new ButtonBuilder()
 					.setLabel('Access the dashboard')
-					.setStyle('LINK')
+					.setStyle(ButtonStyle.Link)
 					.setURL(`${bot.config.websiteURL}/dashboard/${guild.id}`),
 			);
 		interaction.reply({ content: 'There you go.', components: [row] });

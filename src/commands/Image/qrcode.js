@@ -1,5 +1,5 @@
 // Dependencies
-const	{ MessageAttachment } = require('discord.js'),
+const	{ AttachmentBuilder, ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	{ Embed } = require('../../utils'),
 	Command = require('../../structures/Command.js');
 
@@ -17,7 +17,7 @@ class QRcode extends Command {
 			name: 'qrcode',
 			dirname: __dirname,
 			aliases: ['qr-code'],
-			botPermissions: [ 'SEND_MESSAGES', 'EMBED_LINKS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Create a QR code.',
 			usage: 'qrcode <text / file>',
 			cooldown: 5000,
@@ -26,7 +26,7 @@ class QRcode extends Command {
 			options: [{
 				name: 'text',
 				description: 'URL',
-				type: 'STRING',
+				type: ApplicationCommandOptionType.String,
 				required: true,
 			}],
 		});
@@ -48,7 +48,7 @@ class QRcode extends Command {
 
 		// Try and convert image
 		try {
-			const attachment = new MessageAttachment(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${text.replace(/ /g, '%20')}`, 'QRCODE.png');
+			const attachment = new AttachmentBuilder(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${text.replace(/ /g, '%20')}`, { name: 'QRCODE.png' });
 			// send image in embed
 			const embed = new Embed(bot, message.guild)
 				.setImage('attachment://QRCODE.png');
@@ -56,7 +56,7 @@ class QRcode extends Command {
 		} catch(err) {
 			if (message.deletable) message.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 		}
 		msg.delete();
 	}
@@ -70,13 +70,13 @@ class QRcode extends Command {
  	 * @readonly
 	*/
 	async callback(bot, interaction, guild, args) {
-		const text = args.get('text').value;
-		const channel = guild.channels.cache.get(interaction.channelId);
-		await interaction.reply({ content: guild.translate('misc:GENERATING_IMAGE', {
-			EMOJI: bot.customEmojis['loading'] }) });
+		const text = args.get('text').value,
+			channel = guild.channels.cache.get(interaction.channelId);
+
+		await interaction.reply({ content: guild.translate('misc:GENERATING_IMAGE', { EMOJI: bot.customEmojis['loading'] }) });
 
 		try {
-			const attachment = new MessageAttachment(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${text.replace(/ /g, '%20')}`, 'QRCODE.png');
+			const attachment = new AttachmentBuilder(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${text.replace(/ /g, '%20')}`, { name: 'QRCODE.png' });
 			const embed = new Embed(bot, guild)
 				.setImage('attachment://QRCODE.png');
 			interaction.editReply({ content: ' ', embeds: [embed], files: [attachment] });

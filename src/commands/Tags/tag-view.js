@@ -1,6 +1,7 @@
 // Dependencies
 const { Embed } = require('../../utils'),
 	{ TagsSchema } = require('../../database/models/index.js'),
+	{ PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -18,8 +19,8 @@ class TagView extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['t-view'],
-			userPermissions: ['MANAGE_GUILD'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+			userPermissions: [Flags.ManageGuild],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'View the server\'s tag(s)',
 			usage: 'tag-view [name]',
 			cooldown: 2000,
@@ -36,30 +37,34 @@ class TagView extends Command {
 	*/
 	async run(bot, message) {
 		// view all tags on the server
-		TagsSchema.find({ guildID: message.guild.id }).then(result => {
+		try {
+			const tags = await TagsSchema.find({ guildID: message.guild.id });
+
 			// if no tags have been saved yet
-			if (!result[0]) return message.channel.send(message.translate('tags/tag-view:NO_TAG'));
+			if (!tags[0]) return message.channel.error('tags/tag-view:NO_TAG');
 
 			// check if an input was entered
 			if (message.args[0]) {
-				for (const tag of result) {
-					// tagName already exists
-					if (tag.name == message.args[0]) return message.channel.send(tag.response);
-				}
+				const tag = tags.find(t => t.name == message.args[0]);
+				if (tag) return message.channel.send(tag.response);
 			}
 
 			// if no input was entered or tagName didn't match
-			if (result != null) {
+			if (tags != null) {
 				const resultEmbed = new Embed(bot, message.guild)
 					.setTitle('tags/tag-view:TITLE', { NAME:message.guild.name });
-				result.forEach(value => {
-					resultEmbed.addField(message.translate('tags/tag-view:TITLE', { NAME: value.name }), message.translate('tags/tag-view:RESP', { RESP: value.response }));
+				tags.forEach(value => {
+					resultEmbed.addFields({ name: message.translate('tags/tag-view:TITLE', { NAME: value.name }), value: message.translate('tags/tag-view:RESP', { RESP: value.response }) });
 				});
 				return message.channel.send({ embeds: [resultEmbed] });
 			} else {
-				return message.channel.send(message.translate('tags/tag-view:NO_EXIST'));
+				return message.channel.error('tags/tag-view:NO_EXIST');
 			}
-		});
+		} catch (err) {
+			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
+			message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
+		}
+
 	}
 }
 

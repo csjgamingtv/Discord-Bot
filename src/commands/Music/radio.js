@@ -1,6 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
-	{ MessageEmbed } = require('discord.js'),
+	{ EmbedBuilder, ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
 	{ getStations } = require('radio-browser'),
 	Command = require('../../structures/Command.js');
 
@@ -18,7 +18,7 @@ class Radio extends Command {
 			name: 'radio',
 			guildOnly: true,
 			dirname: __dirname,
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'CONNECT', 'SPEAK'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.Connect, Flags.Speak],
 			description: 'Listen to the radio',
 			usage: 'radio <query>',
 			cooldown: 3000,
@@ -26,7 +26,7 @@ class Radio extends Command {
 			options: [{
 				name: 'station',
 				description: 'Radio station name',
-				type: 'STRING',
+				type: ApplicationCommandOptionType.String,
 				required: true,
 				autocomplete: true,
 			}],
@@ -43,25 +43,25 @@ class Radio extends Command {
 		// Check if the member has role to interact with music plugin
 		if (message.guild.roles.cache.get(settings.MusicDJRole)) {
 			if (!message.member.roles.cache.has(settings.MusicDJRole)) {
-				return message.channel.error('misc:MISSING_ROLE').then(m => m.timedDelete({ timeout: 10000 }));
+				return message.channel.error('misc:MISSING_ROLE');
 			}
 		}
 
 		// make sure user is in a voice channel
-		if (!message.member.voice.channel) return message.channel.error('music/play:NOT_VC').then(m => m.timedDelete({ timeout: 10000 }));
+		if (!message.member.voice.channel) return message.channel.error('music/play:NOT_VC');
 
 		// Check that user is in the same voice channel
 		if (bot.manager?.players.get(message.guild.id)) {
-			if (message.member.voice.channel.id != bot.manager?.players.get(message.guild.id).voiceChannel) return message.channel.error('misc:NOT_VOICE').then(m => m.timedDelete({ timeout: 10000 }));
+			if (message.member.voice.channel.id != bot.manager?.players.get(message.guild.id).voiceChannel) return message.channel.error('misc:NOT_VOICE');
 		}
 
-		// Check if VC is full and bot can't join doesn't have (MANAGE_CHANNELS)
-		if (message.member.voice.channel.full && !message.member.voice.channel.permissionsFor(message.guild.me).has('MOVE_MEMBERS')) {
-			return message.channel.error('music/play:VC_FULL').then(m => m.timedDelete({ timeout: 10000 }));
+		// Check if VC is full and bot can't join doesn't have (Flags.ManageChannels)
+		if (message.member.voice.channel.full && !message.member.voice.channel.permissionsFor(message.guild.members.me).has(Flags.MoveMembers)) {
+			return message.channel.error('music/play:VC_FULL');
 		}
 
 		// make sure a radio station was entered
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('music/radio:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('music/radio:USAGE')) });
 
 		// Search for radio station
 		const data = await getStations({
@@ -114,7 +114,7 @@ class Radio extends Command {
 		} catch (err) {
 			if (message.deletable) message.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+			return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 		}
 
 		const res = await player.search(data[index].url, message.author);
@@ -130,7 +130,7 @@ class Radio extends Command {
 			if (!player.playing && !player.paused && !player.queue.size) {
 				player.play();
 			} else {
-				embed = new MessageEmbed()
+				embed = new EmbedBuilder()
 					.setColor(message.member.displayHexColor)
 					.setDescription(`Added to queue: [${res.tracks[0].title}](${res.tracks[0].uri})`);
 				message.channel.send({ embeds: [embed] });
@@ -166,8 +166,8 @@ class Radio extends Command {
 			if (member.voice.channel.id != bot.manager?.players.get(guild.id).voiceChannel) return interaction.reply({ embeds: [channel.error('misc:NOT_VOICE', {}, true)], ephemeral: true });
 		}
 
-		// Check if VC is full and bot can't join doesn't have (MANAGE_CHANNELS)
-		if (member.voice.channel.full && !member.voice.channel.permissionsFor(guild.me).has('MOVE_MEMBERS')) {
+		// Check if VC is full and bot can't join doesn't have (Flags.ManageChannels)
+		if (member.voice.channel.full && !member.voice.channel.permissionsFor(guild.members.me).has('MOVE_MEMBERS')) {
 			return interaction.reply({ embeds: [channel.error('music/play:VC_FULL', {}, true)], ephemeral: true });
 		}
 

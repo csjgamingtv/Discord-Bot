@@ -2,6 +2,7 @@
 const { paginate } = require('../../utils'),
 	{ Embed } = require('../../utils'),
 	{ time: { getReadableTime } } = require('../../utils'),
+	{ PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -19,7 +20,7 @@ class Previous extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['played'],
-			botPermissions: ['SEND_MESSAGES', 'EMBED_LINKS', 'SPEAK', 'ADD_REACTIONS'],
+			botPermissions: [Flags.SendMessages, Flags.EmbedLinks, Flags.Speak, Flags.AddReactions],
 			description: 'Displays the previous tracks that have been played.',
 			usage: 'previous [pageNumber]',
 			cooldown: 3000,
@@ -37,13 +38,13 @@ class Previous extends Command {
 		// Check if the member has role to interact with music plugin
 		if (message.guild.roles.cache.get(settings.MusicDJRole)) {
 			if (!message.member.roles.cache.has(settings.MusicDJRole)) {
-				return message.channel.error('misc:MISSING_ROLE').then(m => m.timedDelete({ timeout: 10000 }));
+				return message.channel.error('misc:MISSING_ROLE');
 			}
 		}
 
 		// Check that a song is being played
 		const player = bot.manager?.players.get(message.guild.id);
-		if (!player) return message.channel.error('misc:NO_QUEUE').then(m => m.timedDelete({ timeout: 10000 }));
+		if (!player) return message.channel.error('misc:NO_QUEUE');
 
 		// Make sure at least one previous track is recorder is not empty
 		const queue = player.previousTracks;

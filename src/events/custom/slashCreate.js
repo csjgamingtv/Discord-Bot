@@ -1,5 +1,5 @@
 // Dependencies
-const { Collection } = require('discord.js'),
+const { Collection, PermissionsBitField } = require('discord.js'),
 	Event = require('../../structures/Event');
 
 /**
@@ -39,22 +39,23 @@ class SlashCreate extends Event {
 		// Check for bot permissions
 		let neededPermissions = [];
 		cmd.conf.botPermissions.forEach((perm) => {
-			if (['SPEAK', 'CONNECT'].includes(perm)) {
+			if ([PermissionsBitField.Flags.Speak, PermissionsBitField.Flags.Connect].includes(perm)) {
 				if (!member.voice.channel) return;
-				if (!member.voice.channel.permissionsFor(guild.me).has(perm)) {
+				if (!member.voice.channel.permissionsFor(bot.user).has(perm)) {
 					neededPermissions.push(perm);
 				}
-			} else if (!channel.permissionsFor(guild.me).has(perm)) {
+			} else if (!channel.permissionsFor(bot.user)?.has(perm)) {
 				neededPermissions.push(perm);
 			}
 		});
 
 		// Display missing bot permissions
 		if (neededPermissions.length > 0) {
-			bot.logger.error(`Missing permission: \`${neededPermissions.join(', ')}\` in [${guild.id}].`);
-			return interaction.reply({ embeds: [channel.error('misc:MISSING_PERMISSION', { PERMISSIONS: neededPermissions.map((p) => bot.translate(`permissions:${p}`)).join(', ') }, true)], ephemeral: true });
+			const perms = new PermissionsBitField();
+			neededPermissions.forEach((item) => perms.add(BigInt(item)));
+			bot.logger.error(`Missing permission: \`${perms.toArray().join(', ')}\` in [${guild.id}].`);
+			return interaction.reply({ embeds: [channel.error('misc:MISSING_PERMISSION', { PERMISSIONS: perms.toArray().map((p) => bot.translate(`permissions:${p}`)).join(', ') }, true)], ephemeral: true });
 		}
-
 		// Check for user permissions
 		neededPermissions = [];
 		cmd.conf.userPermissions.forEach((perm) => {
@@ -63,7 +64,9 @@ class SlashCreate extends Event {
 
 		// Display missing user permissions
 		if (neededPermissions.length > 0) {
-			return interaction.reply({ embeds: [channel.error('misc:USER_PERMISSION', { PERMISSIONS: neededPermissions.map((p) => bot.translate(`permissions:${p}`)).join(', ') }, true)], ephemeral: true });
+			const perms = new PermissionsBitField();
+			neededPermissions.forEach((item) => perms.add(BigInt(item)));
+			return interaction.reply({ embeds: [channel.error('misc:USER_PERMISSION', { PERMISSIONS: perms.toArray().map((p) => bot.translate(`permissions:${p}`)).join(', ') }, true)], ephemeral: true });
 		}
 
 		// Check to see if user is in 'cooldown'
