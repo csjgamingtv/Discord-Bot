@@ -1,6 +1,5 @@
 // Dependencies
-const fetch = require('node-fetch'),
-	{ EmbedBuilder, PermissionsBitField: { Flags } } = require('discord.js'),
+const { EmbedBuilder } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -16,7 +15,6 @@ class Advice extends Command {
 		super(bot, {
 			name: 'advice',
 			dirname: __dirname,
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Get some random advice',
 			usage: 'advice',
 			cooldown: 1000,
@@ -37,10 +35,10 @@ class Advice extends Command {
 
 		// Connect to API and fetch data
 		try {
-			const data = await fetch('https://api.adviceslip.com/advice').then(res => res.json());
+			const advice = await bot.fetch('misc/advice');
 			msg.delete();
 			const embed = new EmbedBuilder()
-				.setDescription(`💡 ${data.slip.advice}`);
+				.setDescription(`💡 ${advice}`);
 			message.channel.send({ embeds: [embed] });
 		} catch (err) {
 			if (message.deletable) message.delete();
@@ -60,8 +58,10 @@ class Advice extends Command {
 	async callback(bot, interaction, guild) {
 		const channel = guild.channels.cache.get(interaction.channelId);
 		try {
-			const data = await fetch('https://api.adviceslip.com/advice').then(res => res.json());
-			interaction.reply({ embeds: [{ color: 'RANDOM', description: `💡 ${data.slip.advice}` }] });
+			const advice = await bot.fetch('misc/advice');
+			if (advice.error) throw new Error(advice.error);
+
+			interaction.reply({ embeds: [{ color: bot.config.embedColor, description: `💡 ${advice}` }] });
 		} catch (err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
 			interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });

@@ -1,6 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ ApplicationCommandOptionType, IntentsBitField, PermissionsBitField: { Flags } } = require('discord.js'),
 	{ ChannelType } = require('discord-api-types/v10'),
 	Command = require('../../structures/Command.js');
 
@@ -19,7 +19,6 @@ class Firstmessage extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['firstmsg', 'first-msg'],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Gets the first message from the channel.',
 			usage: 'firstmessage [channel]',
 			cooldown: 2000,
@@ -44,6 +43,10 @@ class Firstmessage extends Command {
 		// get channel
 		const channel = message.getChannel();
 
+		// Make sure channel is a text-based channel with permission to read messages
+		if (channel[0].isTextBased() || channel[0].permissionsFor(bot.user).has(Flags.ViewChannel)) return message.channel.error('misc:MISSING_CHANNEL');
+		if (!channel[0].permissionsFor(bot.user).has(Flags.ReadMessageHistory)) return message.channel.error('misc:MISSING_PERMISSION', { PERMISSIONS: channel.guild.translate('permissions:ReadMessageHistory') });
+
 		try {
 			// get first message in channel
 			const fMessage = await channel[0].messages.fetch({ after: 1, limit: 1 }).then(msg => msg.first());
@@ -67,7 +70,9 @@ class Firstmessage extends Command {
  	 * @readonly
 	*/
 	async callback(bot, interaction, guild, args) {
+		// Check permission of channel
 		const channel = guild.channels.cache.get(args.get('channel')?.value ?? interaction.channelId);
+		if (!channel.permissionsFor(bot.user).has(Flags.ReadMessageHistory)) return interaction.reply({ embeds: [channel.error('misc:MISSING_PERMISSION', { PERMISSIONS: channel.guild.translate('permissions:ReadMessageHistory') }, true)], ephemeral: true });
 
 		try {
 			// get first message in channel
@@ -77,6 +82,7 @@ class Firstmessage extends Command {
 			// send embed
 			interaction.reply({ embeds: [embed] });
 		} catch (err) {
+			console.log(err);
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
 			interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
 		}
@@ -93,8 +99,8 @@ class Firstmessage extends Command {
 		return new Embed(bot, guild)
 			.setColor(fMessage.member ? fMessage.member.displayHexColor : 0x00AE86)
 			.setThumbnail(fMessage.author.displayAvatarURL({ format: 'png', dynamic: true }))
-			.setAuthor({ name: fMessage.author.tag, iconURL: fMessage.author.displayAvatarURL({ format: 'png', dynamic: true }) })
-			.setDescription(fMessage.content)
+			.setAuthor({ name: fMessage.author.displayName, iconURL: fMessage.author.displayAvatarURL({ format: 'png', dynamic: true }) })
+			.setDescription(bot.options.intents.has(IntentsBitField.Flags.MessageContent) ? fMessage.content : 'Unable to fetch message content.')
 			.addFields(
 				{ name: bot.translate('guild/firstmessage:JUMP'), value: fMessage.url },
 			)

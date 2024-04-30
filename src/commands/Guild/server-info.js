@@ -1,7 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
 	moment = require('moment'),
-	{ PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -19,7 +18,6 @@ class ServerInfo extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['serverinfo', 'guildinfo'],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Get information on the server.',
 			usage: 'server-info',
 			cooldown: 2000,
@@ -75,7 +73,7 @@ class ServerInfo extends Command {
 			.setThumbnail(guild.iconURL())
 			.addFields(
 				{ name: guild.translate('guild/server-info:NAME'), value: `\`${guild.name}\``, inline: true },
-				{ name: guild.translate('guild/server-info:OWNER'), value: `\`${await guild.fetchOwner().then(m => m.user.tag)}\``, inline: true },
+				{ name: guild.translate('guild/server-info:OWNER'), value: `\`${await guild.fetchOwner().then(m => m.user.displayName)}\``, inline: true },
 				{ name: guild.translate('guild/server-info:ID'), value: `\`${guild.id}\``, inline: true },
 				{ name: guild.translate('guild/server-info:CREATED'), value: `\`${moment(guild.createdAt).format('MMMM Do YYYY')}\``, inline: true },
 				{ name: guild.translate('guild/server-info:VERIFICATION'), value: `\`${guild.verificationLevel}\``, inline: true },
@@ -86,7 +84,7 @@ class ServerInfo extends Command {
 				{ name: guild.translate('guild/server-info:ROLES', { NUM: guild.roles.cache.size }), value: `${roles.join(', ')}${(roles.length != guild.roles.cache.size) ? '...' : '.'}` },
 			)
 			.setTimestamp()
-			.setFooter({ text: guild.translate('guild/server-info:FOOTER', { USER: user.tag }) });
+			.setFooter({ text: guild.translate('guild/server-info:FOOTER', { USER: user.displayName }) });
 	}
 }
 

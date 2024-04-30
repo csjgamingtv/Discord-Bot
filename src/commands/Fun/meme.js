@@ -1,7 +1,5 @@
 // Dependencies
-const { Embed } = require('../../utils'),
-	{ PermissionsBitField: { Flags } } = require('discord.js'),
-	Command = require('../../structures/Command.js');
+const	Command = require('../../structures/Command.js');
 
 /**
  * Meme command
@@ -16,7 +14,6 @@ class Meme extends Command {
 		super(bot, {
 			name: 'meme',
 			dirname: __dirname,
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Sends a random meme.',
 			usage: 'meme',
 			cooldown: 1000,
@@ -37,7 +34,7 @@ class Meme extends Command {
 			EMOJI: message.channel.checkPerm('USE_EXTERNAL_EMOJIS') ? bot.customEmojis['loading'] : '', ITEM: this.help.name }));
 
 		// Retrieve a random meme
-		const embed = await this.fetchMeme(bot, message.guild, settings);
+		const embed = await this.fetchMeme(bot, message.channel, settings);
 
 		// Send the meme to channel
 		msg.delete();
@@ -53,7 +50,7 @@ class Meme extends Command {
 	*/
 	async callback(bot, interaction, guild) {
 		const settings = guild.settings;
-		const embed = await this.fetchMeme(bot, guild, settings);
+		const embed = await this.fetchMeme(bot, interaction.channel, settings);
 		return interaction.reply({ embeds: [embed] });
 	}
 
@@ -64,24 +61,10 @@ class Meme extends Command {
  	 * @param {settings} guildSettings The settings of the guild
  	 * @returns {embed}
 	*/
-	async fetchMeme(bot, guild, settings) {
-		try {
-			const meme = await bot.reddit.fetchMeme({ removeNSFW: true });
-			if (!meme.imageURL) {
-				return this.fetchMeme(bot, guild, settings);
-			} else {
-				return new Embed(bot, guild)
-					.setTitle('fun/meme:TITLE', { SUBREDDIT: meme.subreddit })
-					.setColor(16333359)
-					.setURL(meme.link)
-					.setImage(meme.imageURL)
-					.setFooter({ text: guild.translate('fun/meme:FOOTER', { UPVOTES: meme.upvotes.toLocaleString(settings.Language), DOWNVOTES: meme.downvotes.toLocaleString(settings.Language) }) });
-			}
-		} catch (err) {
-			bot.logger.error(err.message);
-			return new Embed(bot, guild)
-				.setDescription('Meme failed to load');
-		}
+	async fetchMeme(bot, channel) {
+		const subreddits = ['meme', 'memes', 'dankmemes', 'ComedyCemetery'];
+
+		return await bot.commands.get('reddit').fetchPost(bot, channel, subreddits[Math.floor(Math.random() * subreddits.length)], 'hot');
 	}
 }
 

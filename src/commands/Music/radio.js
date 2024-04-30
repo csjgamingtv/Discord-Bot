@@ -10,8 +10,8 @@ const { Embed } = require('../../utils'),
 */
 class Radio extends Command {
 	/**
- 	 * @param {Client} client The instantiating client
- 	 * @param {CommandData} data The data for the command
+	   * @param {Client} client The instantiating client
+	   * @param {CommandData} data The data for the command
 	*/
 	constructor(bot) {
 		super(bot, {
@@ -34,10 +34,10 @@ class Radio extends Command {
 	}
 
 	/**
- 	 * Function for receiving message.
- 	 * @param {bot} bot The instantiating client
- 	 * @param {message} message The message that ran the command
- 	 * @readonly
+	   * Function for receiving message.
+	   * @param {bot} bot The instantiating client
+	   * @param {message} message The message that ran the command
+	   * @readonly
   */
 	async run(bot, message, settings) {
 		// Check if the member has role to interact with music plugin
@@ -74,13 +74,13 @@ class Radio extends Command {
 			searchterm: message.args.join(' '),
 		});
 
-		if (!data[0]) return message.channel.send('No radio found with that name').then(m => m.timedDelete({ timeout: 10000 }));
+		if (!data[0]) return message.channel.send(bot.translate('music/radio:MISSING_RADIO'));
 
 		const results = data.map((track, index) => `${++index} - \`${track.name}\``).join('\n');
 		let embed = new Embed(bot, message.guild)
-			.setTitle(`Results for ${message.args.join(' ')}`)
+			.setTitle(bot.translate('music/radio:NUMBER_PICK', { USER: message.args.join(' ') }))
 			.setColor(message.member.displayHexColor)
-			.setDescription(`${results}\n\n\tPick a number from 1-10 or cancel.\n`);
+			.setDescription(bot.translate('music/radio:NUMBER_PICK', { RESULTS: results }));
 		message.channel.send({ embeds: [embed] });
 
 		const filter = (m) => m.author.id === message.author.id && /^(\d+|cancel)$/i.test(m.content);
@@ -90,18 +90,18 @@ class Radio extends Command {
 		try {
 			collected = await message.channel.awaitMessages({ filter, max: 1, time: 30e3, errors: ['time'] });
 		} catch (e) {
-			return message.reply('You didn\'t choose a song in time.');
+			return message.reply(bot.translate('music/misc:SONG_TIMED'));
 		}
 
 		const first = collected.first().content;
 
 		if (first.toLowerCase() === 'cancel') {
 			if (!player.queue.current) player.destroy();
-			return message.channel.send('Cancelled selection.');
+			return message.channel.send(bot.translate('misc:CANCELLED_SELECTION'));
 		}
 
 		const index = Number(first) - 1;
-		if (index < 0 || index > max - 1) return message.reply(`The number you provided was too small or too big (1-${max}).`);
+		if (index < 0 || index > max - 1) return message.reply(bot.translate('music/radio:NAN', { MAX: max }));
 
 		let player;
 		try {
@@ -119,7 +119,7 @@ class Radio extends Command {
 
 		const res = await player.search(data[index].url, message.author);
 
-		if (res.loadType == 'NO_MATCHES') {
+		if (res.loadType == 'empty') {
 			// An error occured or couldn't find the track
 			if (!player.queue.current) player.destroy();
 			return message.channel.error('music/play:NO_SONG');
@@ -132,7 +132,7 @@ class Radio extends Command {
 			} else {
 				embed = new EmbedBuilder()
 					.setColor(message.member.displayHexColor)
-					.setDescription(`Added to queue: [${res.tracks[0].title}](${res.tracks[0].uri})`);
+					.setDescription(bot.translate('music/play:SONG_ADD', { TITLE: res.tracks[0].title, URL: res.tracks[0].uri }));
 				message.channel.send({ embeds: [embed] });
 			}
 		}
@@ -188,7 +188,7 @@ class Radio extends Command {
 		// Search for track
 		try {
 			res = await player.search(input, member);
-			if (res.loadType === 'LOAD_FAILED') {
+			if (res.loadType === 'error') {
 				if (!player.queue.current) player.destroy();
 				throw res.exception;
 			}
@@ -196,13 +196,14 @@ class Radio extends Command {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
 			return interaction.reply({ ephemeral: true, embeds: [channel.error('music/play:ERROR', { ERROR: err.message }, true)] });
 		}
+
 		// Workout what to do with the results
-		if (res.loadType == 'NO_MATCHES') {
+		if (res.loadType == 'empty') {
 			// An error occured or couldn't find the track
 			if (!player.queue.current) player.destroy();
 			return interaction.reply({ ephemeral: true, embeds: [channel.error('music/play:NO_SONG', { ERROR: null }, true)] });
 
-		} else if (res.loadType == 'PLAYLIST_LOADED') {
+		} else if (res.loadType == 'playlist') {
 			// Connect to voice channel if not already
 			if (player.state !== 'CONNECTED') player.connect();
 			// Show how many songs have been added
@@ -221,7 +222,7 @@ class Radio extends Command {
 			player.queue.add(res.tracks[0]);
 			if (!player.playing && !player.paused && !player.queue.size) {
 				player.play();
-				return interaction.reply({ content: 'Successfully started queue.' });
+				return interaction.reply(bot.translate('music/play:QUEUE'));
 			} else {
 				const embed = new Embed(bot, guild)
 					.setColor(member.displayHexColor)
@@ -229,6 +230,20 @@ class Radio extends Command {
 				return interaction.reply({ embeds: [embed] });
 			}
 		}
+	}
+
+	/**
+	 * Function for handling autocomplete
+	 * @param {bot} bot The instantiating client
+	 * @param {interaction} interaction The interaction that ran the command
+	 * @readonly
+	*/
+	async autocomplete(bot, interaction) {
+		const input = interaction.options.getFocused(true).value,
+			radios = await bot.fetch('info/radio', { search: input });
+
+		// Send back the responses
+		interaction.respond(radios.map(i => ({ name: i.name, value: i.audio })));
 	}
 }
 

@@ -1,0 +1,9 @@
+{
+  "DESCRIPTION": "نمایش لیست پخش.",
+  "USAGE": "queue [pageNumber]",
+  "EMPTY": "لیست پخش خالی است",
+  "TITLE": "صف - {{NAME}}",
+  "NOW_PLAYING": "**در حال پخش**: [{{NAME}}]({{URI}}) `[{{DURATION}}]` • {{USER}}.\n\n**تا بعدی**: {{NEXT}}",
+  "PAGE": "صفحه {{PAGE}}/{{PAGES}} | {{LENGTH}} {{SONG}} | {{DURATION}} کل مدت زمان",
+  "LOADED": "صف بارگذاری شده"
+}

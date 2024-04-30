@@ -45,11 +45,11 @@ class Poll extends Command {
 		if (settings.ModerationClearToggle && message.deletable) message.delete();
 
 		// Make sure a poll was provided
-		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('guild/poll:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+		if (!message.args[0]) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('guild/poll:USAGE')) });
 
 		// Send poll to channel
 		const embed = new Embed(bot, message.guild)
-			.setTitle('guild/poll:TITLE', { USER: message.author.tag })
+			.setTitle('guild/poll:TITLE', { USER: message.author.displayName })
 			.setDescription(message.args.join(' '))
 			.setFooter({ text: message.guild.translate('guild/poll:FOOTER') });
 		message.channel.send({ embeds: [embed] }).then(async (msg) => {
@@ -72,7 +72,7 @@ class Poll extends Command {
 
 		// Send poll to channel
 		const embed = new Embed(bot, guild)
-			.setTitle('guild/poll:TITLE', { USER: interaction.user.tag })
+			.setTitle('guild/poll:TITLE', { USER: interaction.user.displayName })
 			.setDescription(text)
 			.setFooter({ text: guild.translate('guild/poll:FOOTER') });
 		interaction.reply({ embeds: [embed],	fetchReply: true }).then(async (msg) => {

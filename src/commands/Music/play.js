@@ -1,6 +1,8 @@
 // Dependencies
 const { Embed } = require('../../utils'),
 	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	axios = require('axios'),
+	rfc3986EncodeURIComponent = (str) => encodeURIComponent(str).replace(/[!'()*]/g, escape),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -9,8 +11,8 @@ const { Embed } = require('../../utils'),
 */
 class Play extends Command {
 	/**
- 	 * @param {Client} client The instantiating client
- 	 * @param {CommandData} data The data for the command
+	 * @param {Client} client The instantiating client
+	 * @param {CommandData} data The data for the command
 	*/
 	constructor(bot) {
 		super(bot, {
@@ -33,7 +35,7 @@ class Play extends Command {
 			},
 			{
 				name: 'flag',
-				description: '(R)andom, (S)huffle or (N)ext to queue',
+				description: '(R)everse, (S)huffle or (N)ext to queue',
 				type: ApplicationCommandOptionType.String,
 				choices: ['-r', '-n', '-s'].map(i => ({ name: i, value: i })),
 			}],
@@ -41,11 +43,11 @@ class Play extends Command {
 	}
 
 	/**
- 	 * Function for receiving message.
- 	 * @param {bot} bot The instantiating client
- 	 * @param {message} message The message that ran the command
- 	 * @readonly
-  */
+	 * Function for receiving message.
+	 * @param {bot} bot The instantiating client
+	 * @param {message} message The message that ran the command
+	 * @readonly
+	*/
 	async run(bot, message, settings) {
 		// make sure user is in a voice channel
 		if (!message.member.voice.channel) return message.channel.error('music/play:NOT_VC');
@@ -78,8 +80,8 @@ class Play extends Command {
 			});
 		} catch (err) {
 			if (message.deletable) message.delete();
-			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
+			bot.logger.error(`Command: '${this.help.name}' has error: player couldn't be created`);
+			return message.channel.error('misc:ERROR_MESSAGE', { ERROR: 'player couldn\'t be created' });
 		}
 
 		// Make sure something was entered
@@ -91,9 +93,9 @@ class Play extends Command {
 				for (const type of fileTypes) {
 					if (url.endsWith(type)) message.args.push(url);
 				}
-				if (!message.args[0]) return message.channel.error('music/play:INVALID_FILE').then(m => m.timedDelete({ timeout: 10000 }));
+				if (!message.args[0]) return message.channel.error('music/play:INVALID_FILE');
 			} else {
-				return message.channel.error('music/play:NO_INPUT').then(m => m.timedDelete({ timeout: 10000 }));
+				return message.channel.error('music/play:NO_INPUT');
 			}
 		}
 
@@ -104,32 +106,32 @@ class Play extends Command {
 		// Search for track
 		try {
 			res = await player.search(search, message.author);
-			if (res.loadType === 'LOAD_FAILED') {
+			if (res.loadType === 'error') {
 				if (!player.queue.current) player.destroy();
 				throw res.exception;
 			}
 		} catch (err) {
-			return message.channel.error('music/play:ERROR', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 10000 }));
+			return message.channel.error('music/play:ERROR', { ERROR: err.message });
 		}
 		// Workout what to do with the results
-		if (res.loadType == 'NO_MATCHES') {
+		if (res.loadType == 'empty') {
 			// An error occured or couldn't find the track
 			if (!player.queue.current) player.destroy();
 			return message.channel.error('music/play:NO_SONG');
 
-		} else if (res.loadType == 'PLAYLIST_LOADED') {
+		} else if (res.loadType == 'playlist') {
 			// Connect to voice channel if not already
 			if (player.state !== 'CONNECTED') player.connect();
 
 			// Show how many songs have been added
 			const embed = new Embed(bot, message.guild)
 				.setColor(message.member.displayHexColor)
-				.setDescription(message.translate('music/play:QUEUED', { NUM: res.tracks.length }));
+				.setDescription(message.translate('music/play:QUEUED', { NUM: res.playlist.tracks.length + 1 }));
 			message.channel.send({ embeds: [embed] });
 
 			// Add songs to queue and then pLay the song(s) if not already
-			player.queue.add(res.tracks);
-			if (!player.playing && !player.paused && player.queue.totalSize === res.tracks.length) player.play();
+			player.queue.add(res.playlist.tracks);
+			if (!player.playing && !player.paused && player.queue.totalSize === (res.playlist.tracks.length + 1)) player.play();
 		} else {
 			// add track to queue and play
 			if (player.state !== 'CONNECTED') player.connect();
@@ -146,12 +148,12 @@ class Play extends Command {
 	}
 
 	/**
- 	 * Function for receiving interaction.
- 	 * @param {bot} bot The instantiating client
- 	 * @param {interaction} interaction The interaction that ran the command
- 	 * @param {guild} guild The guild the interaction ran in
+	 * Function for receiving interaction.
+	 * @param {bot} bot The instantiating client
+	 * @param {interaction} interaction The interaction that ran the command
+	 * @param {guild} guild The guild the interaction ran in
 	 * @param {args} args The options provided in the command, if any
- 	 * @readonly
+	 * @readonly
 	*/
 	async callback(bot, interaction, guild, args) {
 		const channel = guild.channels.cache.get(interaction.channelId),
@@ -160,18 +162,20 @@ class Play extends Command {
 			search = args.get('track').value;
 
 		// make sure user is in a voice channel
-		if (!member.voice.channel) return interaction.reply({ ephemeral: true, embeds: [channel.error('misc:MISSING_ROLE', { ERROR: null }, true)] });
+		if (!member.voice.channel) return interaction.reply({ ephemeral: true, embeds: [channel.error('misc:MISSING_ROLE', null, true)] });
 
 		// Check that user is in the same voice channel
 		if (bot.manager?.players.get(guild.id)) {
-			if (member.voice.channel.id != bot.manager?.players.get(guild.id).voiceChannel) return interaction.reply({ ephemeral: true, embeds: [channel.error('misc:NOT_VOICE', { ERROR: null }, true)] });
+			if (member.voice.channel.id != bot.manager?.players.get(guild.id).voiceChannel) return interaction.reply({ ephemeral: true, embeds: [channel.error('misc:NOT_VOICE', null, true)] });
 		}
 
 		if (guild.roles.cache.get(guild.settings.MusicDJRole)) {
 			if (!member.roles.cache.has(guild.settings.MusicDJRole)) {
-				return interaction.reply({ ephemeral: true, embeds: [channel.error('misc:MISSING_ROLE', { ERROR: null }, true)] });
+				return interaction.reply({ ephemeral: true, embeds: [channel.error('misc:MISSING_ROLE', null, true)] });
 			}
 		}
+
+		await interaction.deferReply();
 
 		// Create player
 		let player, res;
@@ -183,79 +187,138 @@ class Play extends Command {
 				selfDeafen: true,
 			});
 		} catch (err) {
-			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			return interaction.reply({ ephemeral: true, embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)] });
+			bot.logger.error(`Command: '${this.help.name}' has error: player couldn't be created`);
+			return interaction.followUp({ ephemeral: true, embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: 'player couldn\'t be created' }, true)] });
 		}
 
 		// Search for track
 		try {
 			res = await player.search(search, member);
-			if (res.loadType === 'LOAD_FAILED') {
+			if (res.loadType === 'error') {
 				if (!player.queue.current) player.destroy();
 				throw res.exception;
 			}
 		} catch (err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			return interaction.reply({ ephemeral: true, embeds: [channel.error('music/play:ERROR', { ERROR: err.message }, true)] });
+			return interaction.followUp({ ephemeral: true, embeds: [channel.error('music/play:ERROR', { ERROR: err.message }, true)] });
 		}
-		// Workout what to do with the results
-		if (res.loadType == 'NO_MATCHES') {
-			// An error occured or couldn't find the track
-			if (!player.queue.current) player.destroy();
-			return interaction.reply({ ephemeral: true, embeds: [channel.error('music/play:NO_SONG', { ERROR: null }, true)] });
 
-		} else if (res.loadType == 'PLAYLIST_LOADED') {
-			// Connect to voice channel if not already
-			if (player.state !== 'CONNECTED') player.connect();
-			// Show how many songs have been added
-			const embed = new Embed(bot, guild)
-				.setColor(member.displayHexColor)
-				.setDescription(bot.translate('music/play:QUEUED', { NUM: res.tracks.length }));
+		switch (res.loadType) {
+			case 'empty':
+				// An error occured or couldn't find the track
+				if (!player.queue.current) player.destroy();
+				return interaction.followUp({ ephemeral: true, embeds: [channel.error('music/play:NO_SONG', null, true)] });
+			case 'playlist':
+				// Connect to voice channel if not already
+				if (player.state !== 'CONNECTED') player.connect();
+				// Add songs to queue depending on flag (if any)
+				switch (flag) {
+					case '-r':
+						// Reverse the added tracks
+						player.queue.add(res.playlist.tracks.reverse());
+						break;
+					case '-n':
+						// Add the tracks to the front of the queue
+						player.queue.unshift(...res.playlist.tracks);
+						break;
+					case '-s':
+						// Shuffle the added songs
+						player.queue.add(res.playlist.tracks.sort(() => Math.random() - 0.5));
+						break;
+					default:
+						player.queue.add(res.playlist.tracks);
+				}
 
-			// Add songs to queue depending on flag (if any)
-			switch (flag) {
-				case '-r':
-					// Reverse the added tracks
-					player.queue.add(res.tracks.reverse());
-					break;
-				case '-n':
-					// Add the tracks to the front of the queue
-					player.queue.unshift(...res.tracks);
-					break;
-				case '-s':
-					// Shuffle the added songs
-					player.queue.add(res.tracks.sort(() => Math.random() - 0.5));
-					break;
-				default:
-					player.queue.add(res.tracks);
+				if (!player.playing && !player.paused && player.queue.totalSize === (res.playlist.tracks.length + 1)) player.play();
+				return interaction.followUp({
+					embeds: [new Embed(bot, guild)
+						.setColor(member.displayHexColor)
+						.setDescription(bot.translate('music/play:QUEUED', { NUM: res.playlist.tracks.length + 1 })),
+					],
+				});
+			default:
+				// add track to queue and play
+				if (player.state !== 'CONNECTED') player.connect();
+				// Add songs to queue depending on flag (if any)
+				switch (flag) {
+					case '-n':
+						// Add the tracks to the front of the queue
+						player.queue.unshift(res.tracks[0]);
+						break;
+					default:
+						player.queue.add(res.tracks[0]);
+				}
+
+				if (!player.playing && !player.paused && player.queue.size == 0) {
+					try {
+						await player.play();
+						return interaction.followUp({ embeds: [channel.success('music/play:QUEUE', {}, true)] });
+					} catch (err) {
+						bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
+						return interaction.followUp({ ephemeral: true, embeds: [channel.error('music/play:ERROR', { ERROR: err.message }, true)] });
+					}
+				} else {
+					const embed = new Embed(bot, guild)
+						.setColor(member.displayHexColor)
+						.setDescription(bot.translate('music/play:SONG_ADD', { TITLE: res.tracks[0].title, URL: res.tracks[0].uri }));
+					return interaction.followUp({ embeds: [embed] });
+				}
+		}
+	}
+
+	async autocomplete(bot, interaction) {
+		// Get current input and make sure it's not 0
+		const searchQuery = interaction.options.getFocused(true).value;
+		if (searchQuery.length == 0 || searchQuery.startsWith('http')) return interaction.respond([]);
+
+		try {
+			let fetched = false;
+			const res = await axios.get(`https://www.youtube.com/results?q=${rfc3986EncodeURIComponent(searchQuery)}&hl=en`);
+			let html = res.data;
+
+			// try to parse html
+			try {
+				const data = html.split('ytInitialData = \'')[1]?.split('\';</script>')[0];
+				html = data.replace(/\\x([0-9A-F]{2})/ig, (...items) => String.fromCharCode(parseInt(items[1], 16)));
+				html = html.replaceAll('\\\\"', '');
+				html = JSON.parse(html);
+			} catch { null; }
+
+			let videos;
+			if (html?.contents?.sectionListRenderer?.contents?.length > 0 && html.contents.sectionListRenderer.contents[0]?.itemSectionRenderer?.contents?.length > 0) {
+				videos = html.contents.sectionListRenderer.contents[0].itemSectionRenderer.contents;
+				fetched = true;
 			}
 
-			// Play the tracks
-			if (!player.playing && !player.paused && player.queue.totalSize === res.tracks.length) player.play();
-			return interaction.reply({ embeds: [embed] });
-		} else {
-			// add track to queue and play
-			if (player.state !== 'CONNECTED') player.connect();
-
-			// Add songs to queue depending on flag (if any)
-			switch (flag) {
-				case '-n':
-					// Add the tracks to the front of the queue
-					player.queue.unshift(res.tracks[0]);
-					break;
-				default:
-					player.queue.add(res.tracks[0]);
+			// backup/ alternative parsing
+			if (!fetched) {
+				try {
+					videos = JSON.parse(html.split('{"itemSectionRenderer":{"contents":')[html.split('{"itemSectionRenderer":{"contents":').length - 1].split(',"continuations":[{')[0]);
+					fetched = true;
+				} catch { fetched = false; }
+			}
+			if (!fetched) {
+				try {
+					videos = JSON.parse(html.split('{"itemSectionRenderer":')[html.split('{"itemSectionRenderer":').length - 1].split('},{"continuationItemRenderer":{')[0]).contents;
+					fetched = true;
+				} catch { fetched = false; }
 			}
 
-			if (!player.playing && !player.paused && !player.queue.size) {
-				player.play();
-				return interaction.reply({ content: 'Successfully started queue.' });
-			} else {
-				const embed = new Embed(bot, guild)
-					.setColor(member.displayHexColor)
-					.setDescription(bot.translate('music/play:SONG_ADD', { TITLE: res.tracks[0].title, URL: res.tracks[0].uri }));
-				return interaction.reply({ embeds: [embed] });
+			const results = [];
+			if (!fetched) return interaction.respond(results);
+			for (const video of videos.filter(v => typeof v.videoRenderer !== 'undefined')) {
+				// Only get 5 video suggestions
+				if (results.length >= 5) break;
+				results.push({
+					title: video.videoRenderer.title.runs[0].text.substring(0, 100),
+					url: `https://www.youtube.com${video.videoRenderer.navigationEndpoint.commandMetadata.webCommandMetadata.url}`,
+				});
 			}
+			// Send back the results to the user
+			interaction.respond(results.map(video => ({ name: video.title, value: interaction.commandName == 'play' ? video.url : video.title })));
+		} catch (err) {
+			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
+			interaction.respond([]);
 		}
 	}
 }

@@ -1,5 +1,5 @@
 // Dependencies
-const { EmbedBuilder, ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+const { EmbedBuilder, ApplicationCommandOptionType } = require('discord.js'),
 	{ userSchema } = require('../../database/models'),
 	moment = require('moment'),
 	axios = require('axios'),
@@ -19,19 +19,17 @@ class User extends Command {
 			name: 'user',
 			ownerOnly: true,
 			dirname: __dirname,
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Edit a user\'s data',
 			usage: 'user <id> [premium / banned / rank / reset] [true / false]',
 			cooldown: 3000,
 			examples: ['user 184376969016639488 premium true'],
-			slash: false,
-			options: [{
-				name: 'track',
-				description: 'The link or name of the track.',
-				type: ApplicationCommandOptionType.String,
-				required: true,
-				autocomplete: true,
-			}],
+			slash: true,
+			options: bot.subCommands.filter(c => c.help.name.startsWith('user-')).map(c => ({
+				name: c.help.name.replace('user-', ''),
+				description: c.help.description,
+				type: ApplicationCommandOptionType.Subcommand,
+				options: c.conf.options,
+			})),
 		});
 	}
 
@@ -57,10 +55,10 @@ class User extends Command {
 		if (!message.args[1]) {
 			const embed = new EmbedBuilder()
 				.setTitle('User Information:')
-				.setAuthor({ name: user.tag, iconURL: user.displayAvatarURL({ dynamic: true, size: 1024 }) })
+				.setAuthor({ name: user.displayName, iconURL: user.displayAvatarURL({ dynamic: true, size: 1024 }) })
 				.setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }))
 				.setDescription([
-					`Username: \`${user.tag}\``,
+					`Username: \`${user.displayName}\``,
 					`ID: \`${user.id}\``,
 					`Creation Date: \`${moment(user.createdAt).format('lll')}\``,
 					'',
@@ -76,7 +74,7 @@ class User extends Command {
 			case 'premium':
 			// Update the user's premium
 				try {
-					if (!['true', 'false'].includes(message.args[2].toLowerCase())) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('host/user:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+					if (!['true', 'false'].includes(message.args[2].toLowerCase())) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('host/user:USAGE')) });
 					const resp = await userSchema.findOne({ userID: user.id	});
 					if (!resp) {
 						await (new userSchema({
@@ -98,7 +96,7 @@ class User extends Command {
 			case 'banned':
 			// Update the user's global ban
 				try {
-					if (!['true', 'false'].includes(message.args[2].toLowerCase())) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('host/user:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+					if (!['true', 'false'].includes(message.args[2].toLowerCase())) return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('host/user:USAGE')) });
 					const resp = await userSchema.findOne({ userID: user.id	});
 					if (!resp) {
 						await (new userSchema({
@@ -121,7 +119,7 @@ class User extends Command {
 				if (message.attachments.first().url) {
 					try {
 						const response = await axios.get(message.attachments.first().url, { responseType: 'arraybuffer' });
-						if (!['png', 'jpeg'].includes(response.headers['content-type'].replace('image/', ''))) return message.channel.error(`File type must be \`PNG\` or \`JPEG\`, this file type was: ${response.headers['content-type'].replace('image/', '')}`).then(m => m.timedDelete({ timeout: 5000 }));
+						if (!['png', 'jpeg'].includes(response.headers['content-type'].replace('image/', ''))) return message.channel.error(`File type must be \`PNG\` or \`JPEG\`, this file type was: ${response.headers['content-type'].replace('image/', '')}`);
 						const resp = await userSchema.findOne({ userID: user.id	});
 						if (!resp) {
 							await (new userSchema({
@@ -139,7 +137,7 @@ class User extends Command {
 						message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 					}
 				} else {
-					return message.channel.error('Please upload either a PNG or JPEG file with the command.').then(m => m.timedDelete({ timeout: 5000 }));
+					return message.channel.error('Please upload either a PNG or JPEG file with the command.');
 				}
 				break;
 			case 'reset':
@@ -156,7 +154,7 @@ class User extends Command {
 				}
 				break;
 			default:
-				message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('host/user:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+				message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('host/user:USAGE')) });
 				break;
 		}
 	}
@@ -168,8 +166,13 @@ class User extends Command {
 	 * @param {guild} guild The guild the interaction ran in
 	 * @readonly
 	*/
-	async callback(bot, interaction) {
-		interaction.reply({ content: 'This is currently unavailable.' });
+	async callback(bot, interaction, guild, args) {
+		const command = bot.subCommands.get(`user-${interaction.options.getSubcommand()}`);
+		if (command) {
+			command.callback(bot, interaction, guild, args);
+		} else {
+			interaction.reply({ content: 'Error', ephemeral: true });
+		}
 	}
 }
 

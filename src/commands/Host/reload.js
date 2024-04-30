@@ -2,7 +2,7 @@
 const { promisify } = require('util'),
 	readdir = promisify(require('fs').readdir),
 	path = require('path'),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ ApplicationCommandOptionType } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -19,19 +19,17 @@ class Reload extends Command {
 			name: 'reload',
 			ownerOnly: true,
 			dirname: __dirname,
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Reloads a command.',
 			usage: 'reload <command / event>',
 			cooldown: 3000,
 			examples: ['reload help', 'reload channelCreate'],
 			slash: true,
-			options: [{
-				name: 'name',
-				description: 'command or event to reload',
-				type: ApplicationCommandOptionType.String,
-				// choices: [...[...bot.commands.keys()].map(i => ({ name: i, value: i })), ...Object.keys(bot._events).map(i => ({ name: i, value: i }))],
-				required: true,
-			}],
+			options: bot.subCommands.filter(c => c.help.name.startsWith('reload') && c.help.name != 'reload').map(c => ({
+				name: c.help.name.replace('reload-', ''),
+				description: c.help.description,
+				type: ApplicationCommandOptionType.Subcommand,
+				options: c.conf.options,
+			})),
 		});
 	}
 
@@ -96,14 +94,20 @@ class Reload extends Command {
 	}
 
 	/**
-	 * Function for receiving interaction.
-	 * @param {bot} bot The instantiating client
-	 * @param {interaction} interaction The interaction that ran the command
-	 * @param {guild} guild The guild the interaction ran in
-	 * @readonly
+ 	 * Function for receiving interaction.
+ 	 * @param {bot} bot The instantiating client
+ 	 * @param {interaction} interaction The interaction that ran the command
+ 	 * @param {guild} guild The guild the interaction ran in
+	 * @param {args} args The options provided in the command, if any
+ 	 * @readonly
 	*/
-	async callback(bot, interaction) {
-		interaction.reply({ content: 'This is currently unavailable.' });
+	async callback(bot, interaction, guild, args) {
+		const command = bot.subCommands.get(`reload-${interaction.options.getSubcommand()}`);
+		if (command) {
+			command.callback(bot, interaction, guild, args);
+		} else {
+			interaction.reply({ content: 'Error', ephemeral: true });
+		}
 	}
 }
 

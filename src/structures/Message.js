@@ -42,11 +42,11 @@ module.exports = Object.defineProperties(Message.prototype, {
 
 					// search for members
 					this.guild.members.cache.forEach(member => {
-						members.push(member.user.username);
+						members.push(member.user.displayName);
 						indexes.push(member.id);
 					});
 				} else {
-					members.push(this.author.username, this.client.user.username);
+					members.push(this.author.displayName, this.client.user.displayName);
 					indexes.push(this.author.id, this.client.user.id);
 				}
 
@@ -130,7 +130,7 @@ module.exports = Object.defineProperties(Message.prototype, {
 				}
 
 				// no file with the correct format was found
-				if (file.length === 0) return this.channel.error('misc:INVALID_FILE').then(m => m.timedDelete({ timeout: 10000 }));
+				if (file.length === 0) return this.channel.error('misc:INVALID_FILE');
 			}
 
 			// check for message link

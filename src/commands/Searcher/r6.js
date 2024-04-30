@@ -1,9 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
-	R6API = require('r6api.js').default,
-	config = require('../../config.js'),
-	{ findByUsername, getProgression, getRanks, getStats } = new R6API({ email: config.api_keys.rainbow.email, password: config.api_keys.rainbow.password }),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ ApplicationCommandOptionType } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 const platforms = { pc: 'uplay', xbox: 'xbl', ps4: 'psn' };
@@ -22,7 +19,6 @@ class Rainbow6Siege extends Command {
 		super(bot, {
 			name: 'r6',
 			dirname: __dirname,
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Gets statistics on a Rainbow 6 Account.',
 			usage: 'r6 <user> [pc / xbox / ps4] [eu / na / as]',
 			cooldown: 3000,
@@ -38,7 +34,7 @@ class Rainbow6Siege extends Command {
 				name: 'platform',
 				description: 'Device of user.',
 				type: ApplicationCommandOptionType.String,
-				choices: [...['pc', 'xbox', 'ps4'].map(i => ({ name: i, value: i }))],
+				choices: [...['uplay', 'xbl', 'psn'].map(i => ({ name: i, value: i }))],
 				required: false,
 			},
 			{
@@ -116,19 +112,11 @@ class Rainbow6Siege extends Command {
 	async callback(bot, interaction, guild, args) {
 		const channel = guild.channels.cache.get(interaction.channelId),
 			username = args.get('username').value,
-			platform = args.get('platform')?.value,
-			region = args.get('region')?.value;
-
-		// Get platform
-		let device = platforms['pc'];
-		if (['pc', 'xbox', 'ps4'].includes(platform?.toLowerCase())) device = platforms[platform.toLowerCase()];
-
-		// Get region
-		let Region = regions['eu'];
-		if (['eu', 'na', 'as'].includes(region?.toLowerCase())) Region = regions[region.toLowerCase()];
+			platform = args.get('platform')?.value ?? 'uplay',
+			region = args.get('region')?.value ?? 'eu';
 
 		// display stats
-		const resp = await this.fetchUserData(bot, guild, channel, username, device, Region);
+		const resp = await this.fetchUserData(bot, guild, channel, username, platform, region);
 		if (resp.color && resp.color == 15158332) {
 			interaction.reply({ embeds: [resp], ephermal: true });
 		} else {
@@ -148,50 +136,28 @@ class Rainbow6Siege extends Command {
 	*/
 	async fetchUserData(bot, guild, channel, player, platform, region) {
 		if (platform === 'xbl') player = player.replace('_', '');
-		try {
-			player = await findByUsername(platform, player);
-		} catch (err) {
-			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			return channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true);
-		}
-
-		// Makes sure that user actually exist
-		if (!player.length) {
-			return channel.error('searcher/r6:UNKNOWN_USER', {}, true);
-		}
-
-		// get statistics of player
-		player = player[0];
-		let playerRank, playerStats, playerGame;
-		try {
-			playerRank = await getRanks(platform, player.id);
-			playerStats = await getStats(platform, player.id);
-			playerGame = await getProgression(platform, player.id);
-		} catch (err) {
-			bot.logger.error(`Command: 'r6' has error: ${err.message}.`);
-			channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true);
-		}
-
-		if (!playerRank?.length || !playerStats?.length || !playerGame?.length) {
-			return channel.error('misc:ERROR_MESSAGE', { ERROR: 'Missing player data' }, true);
-		}
-		const { current, max } = playerRank[0].seasons[Object.keys(playerRank[0].seasons)[0]].regions[ region ].boards.pvp_ranked;
-		const { pvp, pve } = playerStats[0];
-		const { level, xp } = playerGame[0];
-		platform = Object.keys(platforms).find(key => platforms[key] === platform).toLowerCase();
-		region = Object.keys(regions).find(key => regions[key] === region).toLowerCase();
+		const playerData = await bot.fetch('games/r6', { username: player, platform: platform, region: region });
+		if (playerData.error) return channel.error('misc:ERROR_MESSAGE', { ERROR: playerData.error }, true);
 
 		return new Embed(bot, guild)
-			.setAuthor({ name: player.username, iconURL: bot.user.displayAvatarURL() })
+			.setAuthor({ name: player, iconURL: bot.user.displayAvatarURL() })
 			.setDescription(guild.translate('searcher/r6:DESC', { REGION: region.toUpperCase(), PLATFORM: platform.toUpperCase() }))
-			.setThumbnail(current.icon)
+			.setThumbnail(playerData.profileURL)
 			.addFields(
-				{ name: guild.translate('searcher/r6:GENERAL'), value: guild.translate('searcher/r6:GEN_DATA', { LVL: level, XP: xp.toLocaleString(guild.settings.Language), NAME: current.name, MAX_NAME: max.name, MMR: current.mmr.toLocaleString(guild.settings.Language) }) },
+				{ name: guild.translate('searcher/r6:GENERAL'), value: guild.translate('searcher/r6:GEN_DATA', {
+					LVL: playerData.level, XP: playerData.xp.toLocaleString(guild.settings.Language), NAME: playerData.rank.current.name, MAX_NAME: playerData.rank.max.name,
+					MMR: playerData.rank.current.mmr.toLocaleString(guild.settings.Language) }) },
 				{ name: guild.translate('searcher/r6:STATS'), value: guild.translate('searcher/r6:STAT_DATA', {
-					WIN: pvp.general.wins.toLocaleString(guild.settings.Language), LOSS: pvp.general.losses.toLocaleString(guild.settings.Language), WL: (pvp.general.wins / pvp.general.matches).toFixed(2), KILL: pvp.general.kills.toLocaleString(guild.settings.Language), DEATH: pvp.general.deaths.toLocaleString(guild.settings.Language), KD: (pvp.general.kills / pvp.general.deaths).toFixed(2), TIME: Math.round(pvp.general.playtime / 3600).toLocaleString(guild.settings.Language),
+					WIN: playerData.pvp.wins.toLocaleString(guild.settings.Language), LOSS: playerData.pvp.losses.toLocaleString(guild.settings.Language),
+					WL: (playerData.pvp.wins / playerData.pvp.matches).toFixed(2), KILL: playerData.pvp.kills.toLocaleString(guild.settings.Language),
+					DEATH: playerData.pvp.deaths.toLocaleString(guild.settings.Language), KD: (playerData.pvp.kills / playerData.pvp.deaths).toFixed(2),
+					TIME: Math.round(playerData.pvp.playtime / 3600).toLocaleString(guild.settings.Language),
 				}) },
 				{ name: guild.translate('searcher/r6:TERRORIST'), value: guild.translate('searcher/r6:STAT_DATA', {
-					WIN: pve.general.wins.toLocaleString(guild.settings.Language), LOSS: pve.general.losses.toLocaleString(guild.settings.Language), WL: (pve.general.wins / pve.general.matches).toFixed(2), KILL: pve.general.kills.toLocaleString(guild.settings.Language), DEATH: pve.general.deaths.toLocaleString(guild.settings.Language), KD: (pve.general.kills / pve.general.deaths).toFixed(2), TIME: Math.round(pve.general.playtime / 3600).toLocaleString(guild.settings.Language),
+					WIN: playerData.pve.wins.toLocaleString(guild.settings.Language), LOSS: playerData.pve.losses.toLocaleString(guild.settings.Language),
+					WL: (playerData.pve.wins / playerData.pve.matches).toFixed(2), KILL: playerData.pve.kills.toLocaleString(guild.settings.Language),
+					DEATH: playerData.pve.deaths.toLocaleString(guild.settings.Language), KD: (playerData.pve.kills / playerData.pve.deaths).toFixed(2),
+					TIME: Math.round(playerData.pve.playtime / 3600).toLocaleString(guild.settings.Language),
 				}) },
 			)
 			.setTimestamp();

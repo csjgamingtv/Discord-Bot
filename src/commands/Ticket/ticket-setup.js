@@ -1,6 +1,7 @@
 // Dependencies
 const { Embed } = require('../../utils'),
 	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ ChannelType } = require('discord-api-types/v10'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -25,6 +26,7 @@ class TicketSetup extends Command {
 			cooldown: 3000,
 			examples: ['t-setup category 783024613037703237', 't-setup role 766029837017153576'],
 			slash: false,
+			isSubCmd: true,
 			options: [
 				{
 					name: 'option',
@@ -36,7 +38,7 @@ class TicketSetup extends Command {
 				{
 					name: 'id',
 					description: 'id of role or category',
-					type: ApplicationCommandOptionType.Integer,
+					type: ApplicationCommandOptionType.String,
 					require: true,
 				},
 			],
@@ -62,7 +64,7 @@ class TicketSetup extends Command {
 			// update category channel
 			try {
 				const channel = message.guild.channels.cache.get(message.args[1]);
-				if (!channel || channel.type != 'GUILD_CATEGORY') return message.channel.error('ticket/ticket-setup:NOT_CATEGORY');
+				if (!channel || channel.type != ChannelType.GuildCategory) return message.channel.error('ticket/ticket-setup:NOT_CATEGORY');
 				// update database
 				await message.guild.updateGuild({ TicketCategory: message.args[1] });
 				message.channel.send(message.translate('ticket/ticket-setup:UPDATED_CATEGORY', { NAME: channel.name }));
@@ -106,7 +108,7 @@ class TicketSetup extends Command {
 			// update category channel
 				try {
 					channel = guild.channels.cache.get(id);
-					if (!channel || channel.type != 'GUILD_CATEGORY') return interaction.reply({ content: guild.translate('ticket/ticket-setup:NOT_CATEGORY') });
+					if (!channel || channel.type != ChannelType.GuildCategory) return interaction.reply({ content: guild.translate('ticket/ticket-setup:NOT_CATEGORY') });
 
 					// update database
 					await guild.updateGuild({ TicketCategory: id });

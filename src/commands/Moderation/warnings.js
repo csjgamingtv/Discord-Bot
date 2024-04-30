@@ -1,7 +1,7 @@
 // Dependencies
 const { Embed } = require('../../utils'),
 	{ WarningSchema } = require('../../database/models'),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ ApplicationCommandOptionType } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -19,7 +19,6 @@ class Warnings extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['warns'],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Display number of warnings a user has.',
 			usage: 'warnings [user]',
 			cooldown: 2000,
@@ -68,7 +67,7 @@ class Warnings extends Command {
 				}
 
 				const embed = new Embed(bot, message.guild)
-					.setTitle('moderation/warnings:TITLE', { USER: members[0].user.username })
+					.setTitle('moderation/warnings:TITLE', { USER: members[0].user.displayName })
 					.setDescription(list)
 					.setTimestamp();
 				message.channel.send({ embeds: [embed] });
@@ -110,7 +109,7 @@ class Warnings extends Command {
 				}
 
 				const embed = new Embed(bot, guild)
-					.setTitle('moderation/warnings:TITLE', { USER: member.user.username })
+					.setTitle('moderation/warnings:TITLE', { USER: member.user.displayName })
 					.setDescription(list)
 					.setTimestamp();
 				interaction.reply({ embeds: [embed] });

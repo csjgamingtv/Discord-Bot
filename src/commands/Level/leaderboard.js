@@ -1,6 +1,5 @@
 // Dependencies
 const { Embed, paginate } = require('../../utils'),
-	{ PermissionsBitField: { Flags } } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 // Show the ordinal for the ranks
@@ -22,7 +21,6 @@ class Leaderboard extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['lb', 'levels', 'ranks'],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Displays the Servers\'s level leaderboard.',
 			usage: 'leaderboard',
 			cooldown: 3000,
@@ -70,17 +68,18 @@ class Leaderboard extends Command {
 
 		// Retrieve Ranks from database
 		try {
+			await interaction.deferReply();
 			const res = await this.createLeaderboard(bot, guild);
 			if (Array.isArray(res)) {
 				paginate(bot, interaction, res, interaction.user.id);
 			} else if (typeof (res) == 'object') {
-				interaction.reply({ embeds: [res] });
+				interaction.followUp({ embeds: [res] });
 			} else {
-				interaction.reply({ content: res });
+				interaction.followUp({ content: res });
 			}
 		} catch (err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			return interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
+			return interaction.followUp({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
 		}
 	}
 
@@ -108,21 +107,16 @@ class Leaderboard extends Command {
 
 			// generate pages
 			const pages = [];
-			await guild.members.fetch();
+			await guild.members.fetch({ user: res.map(i => i.userID) });
 			for (let i = 0; i < pagesNum; i++) {
 				const embed2 = new Embed(bot, guild)
 					.setTitle('level/leaderboard:TITLE')
 					.setURL(`${bot.config.websiteURL}/leaderboard/${guild.id}`);
 				for (let j = 0; j < 10; j++) {
 					if (res[(i * 10) + j]) {
-						const name = guild.members.cache.get(res[(i * 10) + j].userID) || 'User left';
-						if (name == 'User left') {
-							embed2.addFields({ name: guild.translate('level/leaderboard:FIELD_TITLE', { POS: ordinal((i * 10) + j + 1), NAME: name }),
-								value: guild.translate('level/leaderboard:FIELD_DATA', { XP: res[(i * 10) + j].Xp.toLocaleString(guild.settings.Language), LEVEL: res[(i * 10) + j].Level.toLocaleString(guild.settings.Language) }) });
-						} else {
-							embed2.addFields({ name: guild.translate('level/leaderboard:FIELD_TITLE', { POS: ordinal((i * 10) + j + 1), NAME: name.user.username }),
-								value: guild.translate('level/leaderboard:FIELD_DATA', { XP: res[(i * 10) + j].Xp.toLocaleString(guild.settings.Language), LEVEL: res[(i * 10) + j].Level.toLocaleString(guild.settings.Language) }) });
-						}
+						const member = guild.members.cache.get(res[(i * 10) + j].userID);
+						embed2.addFields({ name: guild.translate('level/leaderboard:FIELD_TITLE', { POS: ordinal((i * 10) + j + 1), NAME: member == undefined ? 'User left' : member.user.displayName }),
+							value: guild.translate('level/leaderboard:FIELD_DATA', { XP: res[(i * 10) + j].Xp.toLocaleString(guild.settings.Language), LEVEL: res[(i * 10) + j].Level.toLocaleString(guild.settings.Language) }) });
 					}
 				}
 

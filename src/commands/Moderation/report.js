@@ -1,6 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ ApplicationCommandOptionType } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -18,12 +18,11 @@ class Report extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['rep'],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Report a user.',
 			usage: 'report <user> [reason]',
 			cooldown: 3000,
 			examples: ['report username', 'report username swearing'],
-			slash: false,
+			slash: true,
 			options: [
 				{
 					name: 'user',
@@ -75,13 +74,13 @@ class Report extends Command {
 				.setAuthor({ name: message.translate('moderation/report:AUTHOR'), iconURL: members[0].user.displayAvatarURL() })
 				.setColor(15158332)
 				.addFields(
-					{ name: message.translate('moderation/report:MEMBER'), value: members[0], inline: true },
-					{ name: message.translate('moderation/report:BY'), value: message.member, inline: true },
-					{ name: message.translate('moderation/report:IN'), value: message.channel },
+					{ name: message.translate('moderation/report:MEMBER'), value: `${members[0]}`, inline: true },
+					{ name: message.translate('moderation/report:BY'), value: `${message.member}`, inline: true },
+					{ name: message.translate('moderation/report:IN'), value: `${message.channel}` },
 					{ name: message.translate('moderation/report:REASON'), value: message.args.slice(1).join(' ') },
 				)
 				.setTimestamp()
-				.setFooter(message.guild.name);
+				.setFooter({ text: message.guild.name });
 			const repChannel = message.guild.channels.cache.find(channel => channel.id === settings.ModLogChannel);
 			if (repChannel) {
 				repChannel.send({ embeds: [embed] });
@@ -117,13 +116,13 @@ class Report extends Command {
 				.setAuthor({ name: guild.translate('moderation/report:AUTHOR'), iconURL: member.user.displayAvatarURL() })
 				.setColor(15158332)
 				.addFields(
-					{ name: guild.translate('moderation/report:MEMBER'), value: member, inline: true },
-					{ name: guild.translate('moderation/report:BY'), value: interaction.member, inline: true },
-					{ name: guild.translate('moderation/report:IN'), value: interaction.channel },
+					{ name: guild.translate('moderation/report:MEMBER'), value: `${member}`, inline: true },
+					{ name: guild.translate('moderation/report:BY'), value: `${interaction.member}`, inline: true },
+					{ name: guild.translate('moderation/report:IN'), value: `${interaction.channel}` },
 					{ name: guild.translate('moderation/report:REASON'), value: reason },
 				)
 				.setTimestamp()
-				.setFooter(guild.name);
+				.setFooter({ text: guild.name });
 			const repChannel = guild.channels.cache.get(settings.ModLogChannel);
 			if (repChannel) {
 				repChannel.send({ embeds: [embed] });

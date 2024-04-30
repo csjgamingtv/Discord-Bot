@@ -19,7 +19,6 @@ class DM extends Command {
 			dirname: __dirname,
 			aliases: ['direct-message', 'dmsg'],
 			userPermissions: [Flags.ManageGuild],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'DM a user',
 			usage: 'dm <user> <message>',
 			cooldown: 3000,
@@ -67,9 +66,9 @@ class DM extends Command {
 				.setThumbnail(message.guild.iconURL({ dynamic: true, size: 1024 }))
 				.setDescription(message.args.join(' ').slice(message.args[0].length))
 				.setTimestamp()
-				.setFooter(message.author.tag, message.author.displayAvatarURL({ format: 'png', size: 1024 }));
+				.setFooter({ text: message.author.displayName, iconURL: message.author.displayAvatarURL({ format: 'png', size: 1024 }) });
 			await members[0].user.send({ embeds: [embed] });
-			message.channel.send(message.translate('moderation/dm:SUCCESS', { TAG: members[0].user.tag }));
+			message.channel.send(message.translate('moderation/dm:SUCCESS', { TAG: members[0].user.displayName }));
 		} catch (err) {
 			if (message.deletable) message.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
@@ -97,12 +96,12 @@ class DM extends Command {
 				.setThumbnail(guild.iconURL({ dynamic: true, size: 1024 }))
 				.setDescription(text)
 				.setTimestamp()
-				.setFooter(interaction.user.tag, interaction.user.displayAvatarURL({ format: 'png', size: 1024 }));
+				.setFooter({ text: interaction.user.displayName, icon_url: interaction.user.displayAvatarURL({ format: 'png', size: 1024 }) });
 			await member.user.send({ embeds: [embed] });
-			interaction.reply({ embeds: [channel.success('moderation/dm:SUCCESS', { TAG: member.user.tag }, true)], fetchReply: true }).then(m => m.timedDelete({ timeout: 10000 }));
+			interaction.reply({ embeds: [channel.success('moderation/dm:SUCCESS', { TAG: member.user.displayName }, true)], fetchReply: true }).then(m => m.timedDelete({ timeout: 10000 }));
 		} catch (err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], fetchReply: true }).then(m => m.timedDelete({ timeout: 10000 }));
+			interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
 		}
 	}
 }

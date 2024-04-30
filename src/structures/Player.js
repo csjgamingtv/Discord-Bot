@@ -1,19 +1,20 @@
 // Dependecies
-const { Structure } = require('erela.js');
+const { Structure } = require('magmastream');
 
 module.exports = Structure.extend('Player', Player => {
 	class CustomPlayer extends Player {
 		constructor(...args) {
 			super(...args);
 			// extra settings
-			this.twentyFourSeven = false;
 			this.previousTracks = [];
 			// for bot leave function
 			this.timeout = null;
 			// for filters
 			this.speed = 1;
 			this.bassboost = false;
+			this.eightD = false;
 			this.nightcore = false;
+			this.slowmo = false;
 			this.vaporwave = false;
 			// for Autoplay
 			this.autoplay = false;
@@ -42,6 +43,25 @@ module.exports = Structure.extend('Player', Player => {
 					],
 				});
 				this.bassboost = true;
+			}
+			return this;
+		}
+
+		// update eightD filter
+		setEightD(value) {
+			if (value) {
+				this.setFilter({
+					equalizer: [
+						{ band: 1, gain: 0.3 },
+						{ band: 0, gain: 0.3 },
+					],
+					rotation: { rotationHz: 0.2 },
+					tremolo: { depth: 0.3, frequency: 14 },
+				});
+				this.eightD = true;
+			} else {
+				this.resetFilter();
+				this.eightD = false;
 			}
 			return this;
 		}
@@ -84,24 +104,52 @@ module.exports = Structure.extend('Player', Player => {
 			return this;
 		}
 
+		// update slowmo filter
+		setSlowmo(value) {
+			if (value) {
+				this.setFilter({
+					equalizer: [
+						{ band: 1, gain: 0.3 },
+						{ band: 0, gain: 0.3 },
+					],
+					timescale: { speed: 0.7, pitch: 1.0, rate: 0.8 },
+					tremolo: { depth: 0.3, frequency: 14 },
+				});
+				this.slowmo = true;
+			} else {
+				this.resetFilter();
+				this.slowmo = false;
+			}
+			return this;
+		}
+
 		// send lavalink the new filters
 		setFilter(body = {}) {
-			this.node.send({
-				op: 'filters',
-				guildId: this.guild.id || this.guild,
-				...body,
+			this.node.rest.updatePlayer({
+				data: {
+					filters: {
+						...body,
+					},
+				},
+				guildId: this.guild,
 			});
 			return this;
 		}
 
 		// reset filters
 		resetFilter() {
-			this.speed = 1;
-			this.node.send({
-				op: 'filters',
-				guildId: this.guild.id || this.guild,
-				...{},
+			this.node.rest.updatePlayer({
+				data: {
+					filters: {},
+				},
+				guildId: this.guild,
 			});
+			this.speed = 1;
+			this.bassboost = false;
+			this.nightcore = false;
+			this.vaporwave = false;
+			this.slowmo = false;
+			this.eightD = false;
 			return this;
 		}
 
@@ -114,10 +162,13 @@ module.exports = Structure.extend('Player', Player => {
 		// Change playback speed
 		setSpeed(value) {
 			this.speed = value;
-			this.node.send({
-				op: 'filters',
-				guildId: this.guild.id || this.guild,
-				timescale: { speed: value },
+			this.node.rest.updatePlayer({
+				data: {
+					filters: {
+						timescale: { speed: value },
+					},
+				},
+				guildId: this.guild,
 			});
 			return this;
 		}

@@ -55,7 +55,7 @@ class ClickButton extends Event {
 				{ id: bot.user, allow: [PermFlag.SendMessages, PermFlag.ViewChannel, PermFlag.EmbedLinks] },
 			];
 			if (guild.roles.cache.get(guild.settings.TicketSupportRole)) perms.push({ id: guild.settings.TicketSupportRole, allow: [PermFlag.SendMessages, PermFlag.ViewChannel] });
-			console.log(perms);
+
 			// create channel
 			try {
 				const c = await guild.channels.create({ name: `ticket-${member.user.id}`, type: ChannelType.GuildText,
@@ -78,7 +78,7 @@ class ClickButton extends Event {
 				const embed = new Embed(bot, guild)
 					.setColor(0xFF5555)
 					.addFields(
-						{ name: guild.translate('ticket/ticket-create:FIELD1', { USERNAME: member.user.tag }), value: guild.translate('ticket/ticket-create:FIELDT') },
+						{ name: guild.translate('ticket/ticket-create:FIELD1', { USERNAME: member.user.displayName }), value: guild.translate('ticket/ticket-create:FIELDT') },
 						{ name: guild.translate('ticket/ticket-create:FIELD2'), value: guild.translate('misc:NO_REASON') },
 					)
 					.setTimestamp();

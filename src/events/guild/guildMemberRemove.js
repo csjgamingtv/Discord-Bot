@@ -1,7 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
 	{ RankSchema } = require('../../database/models'),
-	dateFormat = require('dateformat'),
 	varSetter = require('../../helpers/variableSetter'),
 	Event = require('../../structures/Event');
 
@@ -25,8 +24,7 @@ class GuildMemberRemove extends Event {
 	*/
 	async run(bot, member) {
 		// For debugging
-		if (bot.config.debug) bot.logger.debug(`Member: ${member.user.tag} has left guild: ${member.guild.id}.`);
-
+		if (bot.config.debug) bot.logger.debug(`Member: ${member.user.displayName} has left guild: ${member.guild.id}.`);
 		if (member.user.id == bot.user.id) return;
 
 		// Get server settings / if no settings then return
@@ -41,7 +39,7 @@ class GuildMemberRemove extends Event {
 				.setFooter({ text: `ID: ${member.id}` })
 				.setThumbnail(member.user.displayAvatarURL())
 				.setAuthor({ name: 'User left:', iconURL: member.user.displayAvatarURL() })
-				.addFields({ name: 'Joined at:', value: member.partial ? 'Unknown' : `${dateFormat(member.joinedAt, 'ddd dd/mm/yyyy')} (${Math.round((new Date() - member.joinedAt) / 86400000)} day(s) ago)` })
+				.addFields({ name: 'Joined at:', value: member.partial ? 'Unknown' : `<t:${Math.round(member.joinedTimestamp / 1000)}:R> (${Math.round((new Date() - member.joinedAt) / 86400000)} day(s) ago)` })
 				.setTimestamp();
 
 			// Find channel and send message

@@ -1,7 +1,5 @@
 // Dependencies
-const fs = require('fs'),
-	{ Embed } = require('../../utils'),
-	{ PermissionsBitField: { Flags } } = require('discord.js'),
+const { Embed } = require('../../utils'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -18,7 +16,6 @@ class Fact extends Command {
 			name: 'fact',
 			dirname: __dirname,
 			aliases: ['facts'],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Receive a random fact.',
 			usage: 'fact',
 			slash: true,
@@ -34,21 +31,17 @@ class Fact extends Command {
   */
 	async run(bot, message) {
 		// Get the random facts file
-		fs.readFile('./src/assets/json/random-facts.json', (err, data) => {
-			if (err) {
-				if (message.deletable) message.delete();
-				bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-				return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
-			}
-
-			// Retrieve a random fact
-			const { facts } = JSON.parse(data);
-			const num = Math.floor((Math.random() * facts.length));
+		try {
+			const fact = await bot.fetch('misc/random-fact');
 			const embed = new Embed(bot, message.guild)
 				.setTitle('fun/fact:FACT_TITLE')
-				.setDescription(facts[num]);
+				.setDescription(fact);
 			message.channel.send({ embeds: [embed] });
-		});
+		} catch (err) {
+			if (message.deletable) message.delete();
+			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
+			return message.channel.error('misc:ERROR_MESSAGE', { ERROR: err.message });
+		}
 	}
 
 	/**
@@ -60,20 +53,19 @@ class Fact extends Command {
   */
 	async callback(bot, interaction, guild) {
 		const channel = guild.channels.cache.get(interaction.channelId);
-		fs.readFile('./src/assets/json/random-facts.json', async (err, data) => {
-			if (err) {
-				bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-				await interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
-			}
 
-			// Retrieve a random fact
-			const { facts } = JSON.parse(data);
-			const num = Math.floor((Math.random() * facts.length));
+		try {
+			const fact = await bot.fetch('misc/random-fact');
+			if (fact.error) throw new Error(fact.error);
+
 			const embed = new Embed(bot, guild)
 				.setTitle('fun/fact:FACT_TITLE')
-				.setDescription(facts[num]);
-			await interaction.reply({ embeds: [embed] });
-		});
+				.setDescription(fact);
+			interaction.reply({ embeds: [embed] });
+		} catch (err) {
+			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
+			await interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
+		}
 	}
 }
 

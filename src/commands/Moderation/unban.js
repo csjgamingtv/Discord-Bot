@@ -23,7 +23,7 @@ class Unban extends Command {
 			usage: 'unban <userID> [reason]',
 			cooldown: 5000,
 			examples: ['unban 184376969016639488'],
-			slash: false,
+			slash: true,
 			options: [
 				{
 					name: 'user',
@@ -85,7 +85,7 @@ class Unban extends Command {
 				const bUser = bans.get(userID);
 				if (bUser) {
 					await guild.members.unban(bUser.user);
-					interaction.reply({ embeds: [channel.error('moderation/unban:SUCCESS', { USER: bUser.user }, true)] });
+					interaction.reply({ embeds: [channel.success('moderation/unban:SUCCESS', { USER: bUser.user }, true)] });
 				} else {
 					interaction.reply({ embeds: [channel.error('moderation/unban:MISSING', { ID: userID }, true)] });
 				}

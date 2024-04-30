@@ -1,5 +1,7 @@
 const { GuildSchema, userSchema, TagsSchema } = require('../../database/models'),
-	Event = require('../../structures/Event');
+	{ PermissionsBitField: { Flags } } = require('discord.js'),
+	Event = require('../../structures/Event'),
+	AudioManager = require('../../base/Audio-Manager');
 
 /**
  * Ready event
@@ -22,6 +24,7 @@ class Ready extends Event {
 	async run(bot) {
 		// Load up audio player
 		try {
+			bot.manager = new AudioManager(bot);
 			bot.manager.init(bot.user.id);
 		} catch (err) {
 			bot.logger.error(`Audio manager failed to load due to error: ${err.message}`);
@@ -39,14 +42,14 @@ class Ready extends Event {
 			await require('../../helpers/webhookManager')(bot);
 		}, 10000);
 
+		// Fetch and prepare guild for settings etc
 		for (const guild of [...bot.guilds.cache.values()]) {
 			// Sort out guild settings
 			await guild.fetchSettings();
-			if (guild.settings == null) return bot.emit('guildCreate', guild);
 			if (guild.settings.plugins.includes('Level')) await guild.fetchLevels();
 
 			// Append tags to guild specific arrays
-			if(guild.settings.PrefixTags) {
+			if (guild.settings.PrefixTags) {
 				TagsSchema.find({ guildID: guild.id }).then(result => {
 					result.forEach(value => {
 						guild.guildTags.push(value.name);
@@ -74,22 +77,19 @@ class Ready extends Event {
 
 		bot.logger.ready('All guilds have been initialized.');
 
-		// Every 1 minutes fetch new guild data
-		setInterval(async () => {
-			if (bot.config.debug) bot.logger.debug('Fetching guild settings (Interval: 1 minutes)');
-			bot.guilds.cache.forEach(async guild => {
-				await guild.fetchSettings();
-			});
-		}, 60000);
-
-		// check for premium users
+		// check for custom users
 		const users = await userSchema.find({});
+		if (users.length > 0) bot.logger.log(`Preparing ${users.length} users.`);
 		for (const { userID, premium, premiumSince, cmdBanned, rankImage } of users) {
-			const user = await bot.users.fetch(userID);
-			user.premium = premium;
-			user.premiumSince = premiumSince ?? 0;
-			user.cmdBanned = cmdBanned;
-			user.rankImage = rankImage ? Buffer.from(rankImage ?? '', 'base64') : '';
+			try {
+				const user = await bot.users.fetch(userID);
+				user.premium = premium;
+				user.premiumSince = premiumSince ?? 0;
+				user.cmdBanned = cmdBanned;
+				user.rankImage = rankImage ? Buffer.from(rankImage ?? '', 'base64') : '';
+			} catch (err) {
+				bot.logger.error(`${userID} is an invalid user ID.`);
+			}
 		}
 
 
@@ -100,10 +100,31 @@ class Ready extends Event {
 			console.log(err);
 		}
 
+		// Make sure 'SupportServer' has Host commands
+		if (bot.config.SupportServer.GuildID) {
+			const guild = bot.guilds.cache.get(bot.config.SupportServer.GuildID);
+			if (guild) {
+				// Check if Main server already have 'Host' commands
+				const guildCmds = await guild.commands.fetch();
+				if (!(guildCmds.find(cmd => cmd.name == 'reload'))) {
+					// Add host commands to Support server as they don't have them
+					const cmds = await bot.loadInteractionGroup('Host', guild.id);
+					for (const cmd of cmds) {
+						cmd.defaultMemberPermissions = [Flags.Administrator];
+					}
+					if (Array.isArray(cmds)) await bot.guilds.cache.get(guild.id)?.commands.set(cmds);
+					bot.logger.log(`Added Host commands to Support server: ${guild.id}.`);
+				}
+			} else {
+				bot.logger.error('Bot is not in Support server.');
+			}
+		}
+
+
 		// LOG ready event
-		bot.logger.log('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=', 'ready');
-		bot.logger.log(`${bot.user.tag}, ready to serve [${bot.users.cache.size}] users in [${bot.guilds.cache.size}] servers.`, 'ready');
-		bot.logger.log('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=', 'ready');
+		bot.logger.ready('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=');
+		bot.logger.ready(`${bot.user.displayName}, ready to serve [${bot.users.cache.size}] users in [${bot.guilds.cache.size}] servers.`);
+		bot.logger.ready('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=');
 	}
 }
 

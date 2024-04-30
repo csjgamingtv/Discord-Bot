@@ -4,21 +4,21 @@ const { ActivityType, Client, Collection, GatewayIntentBits: FLAGS, Partials, Pe
 	GiveawaysManager = require('./Giveaway-Manager'),
 	path = require('path'),
 	{ promisify } = require('util'),
-	AudioManager = require('./Audio-Manager'),
-	Reddit = require('../APIs/reddit.js'),
+	{ get } = require('axios'),
 	readdir = promisify(require('fs').readdir);
 
 /**
  * Egglord custom client
  * @extends {Client}
 */
+
 class Egglord extends Client {
 	constructor() {
 		super({
 			partials: [Partials.GuildMember, Partials.User, Partials.Message, Partials.Channel, Partials.Reaction, Partials.GuildScheduledEvent],
-			intents: [FLAGS.Guilds, FLAGS.GuildMembers, FLAGS.GuildBans, FLAGS.GuildEmojisAndStickers,
+			intents: [FLAGS.AutoModerationConfiguration, FLAGS.AutoModerationExecution, FLAGS.Guilds, FLAGS.GuildMembers, FLAGS.GuildBans, FLAGS.GuildEmojisAndStickers,
 				FLAGS.GuildMessages, FLAGS.GuildMessageReactions, FLAGS.DirectMessages, FLAGS.GuildVoiceStates, FLAGS.GuildInvites,
-				FLAGS.GuildScheduledEvents, FLAGS.MessageContent],
+				FLAGS.GuildScheduledEvents, FLAGS.MessageContent, FLAGS.GuildModeration],
 			presence: {
 				status: 'online',
 				activities: [{
@@ -30,9 +30,9 @@ class Egglord extends Client {
 		});
 
 		/**
- 		 * The logger file
- 	 	 * @type {function}
- 	  */
+		 * The logger file
+		 * @type {function}
+		*/
 		this.logger = require('../utils/Logger');
 
 		/**
@@ -70,6 +70,7 @@ class Egglord extends Client {
 		*/
 		this.aliases = new Collection();
 		this.commands = new Collection();
+		this.subCommands = new Collection();
 		this.interactions = new Collection();
 		this.cooldowns = new Collection();
 		this.requests = {};
@@ -132,14 +133,6 @@ class Egglord extends Client {
 		 * @type {function}
 		*/
 		this.delay = ms => new Promise(res => setTimeout(res, ms));
-
-		/**
-		 * The Audio manager
-		 * @type {Class}
-		*/
-		this.manager = new AudioManager(this);
-
-		this.reddit = new Reddit();
 	}
 
 	/**
@@ -175,22 +168,6 @@ class Egglord extends Client {
 	}
 
 	/**
-	 * Function for loading commands to the bot.
-	 * @param {string} commandPath The path of where the command is located
-	 * @param {string} commandName The name of the command
-	 * @readonly
-	*/
-	loadCommand(commandPath, commandName) {
-		const cmd = new (require(`.${commandPath}${path.sep}${commandName}`))(this);
-		this.logger.log(`Loading Command: ${cmd.help.name}.`);
-		cmd.conf.location = commandPath;
-		this.commands.set(cmd.help.name, cmd);
-		cmd.help.aliases.forEach((alias) => {
-			this.aliases.set(alias, cmd.help.name);
-		});
-	}
-
-	/**
 	 * Function for fetching slash command data.
 	 * @param {string} category The command category to get data from
 	 * @returns {array}
@@ -206,6 +183,7 @@ class Egglord extends Client {
 						const item = {
 							name: command.help.name,
 							description: command.help.description,
+							nsfw: command.conf.nsfw,
 							defaultMemberPermissions: command.conf.userPermissions.length >= 1 ? command.conf.userPermissions : PermissionFlag.SendMessages,
 						};
 						if (command.conf.options[0]) item.options = command.conf.options;
@@ -226,11 +204,12 @@ class Egglord extends Client {
 	 * @param {guild} guild The guild to delete the slash commands from
 	 * @returns {?array}
 	*/
-	async deleteInteractionGroup(category, guild) {
+	async deleteInteractionGroup(category) {
 		try {
 			const commands = (await readdir('./src/commands/' + category + '/')).filter((v, i, a) => a.indexOf(v) === i);
+
 			const arr = [];
-			commands.forEach((cmd) => {
+			for (const cmd of commands) {
 				if (!this.config.disabledCommands.includes(cmd.replace('.js', ''))) {
 					const command = new (require(`../commands/${category}${path.sep}${cmd}`))(this);
 					if (command.conf.slash) {
@@ -240,10 +219,9 @@ class Egglord extends Client {
 							options: command.conf.options,
 							defaultPermission: command.conf.defaultPermission,
 						});
-						guild.interactions.delete(command.help.name, command);
 					}
 				}
-			});
+			}
 			return arr;
 		} catch (err) {
 			return `Unable to load category ${category}: ${err}`;
@@ -251,30 +229,12 @@ class Egglord extends Client {
 	}
 
 	/**
-	 * Function for unloading commands to the bot.
-	 * @param {string} commandPath The path of where the command is located
-	 * @param {string} commandName The name of the command
-	 * @readonly
-	*/
-	async unloadCommand(commandPath, commandName) {
-		let command;
-		if (this.commands.has(commandName)) {
-			command = this.commands.get(commandName);
-		} else if (this.aliases.has(commandName)) {
-			command = this.commands.get(this.aliases.get(commandName));
-		}
-		if (!command) return `The command \`${commandName}\` doesn't seem to exist, nor is it an alias. Try again!`;
-		delete require.cache[require.resolve(`.${commandPath}${path.sep}${commandName}.js`)];
-		return false;
-	}
-
-	/**
 	 * Function adult sites for blocking on non-nsfw channels.
 	 * @return {array}
 	*/
 	async fetchAdultSiteList() {
-		const blockedWebsites = require('../assets/json/whitelistWebsiteList.json');
-		this.adultSiteList = blockedWebsites.websites;
+		this.adultSiteList = require('../assets/json/whitelistWebsiteList.json').websites;
+		// this.adultSiteList = blockedWebsites.websites;
 		return this.adultSiteList;
 	}
 
@@ -299,11 +259,39 @@ class Egglord extends Client {
 	 * @readonly
 	*/
 	addEmbed(channelID, embed) {
-		// collect embeds
-		if (!this.embedCollection.has(channelID)) {
-			this.embedCollection.set(channelID, [embed]);
-		} else {
-			this.embedCollection.set(channelID, [...this.embedCollection.get(channelID), embed]);
+		this.embedCollection.set(channelID, [this.embedCollection.has(channelID) ? [...this.embedCollection.get(channelID), embed].flat() : embed]);
+	}
+
+	/**
+	 * Function for adding embeds to the webhook manager. (Stops API abuse)
+	 * @param {string} endpoint The key to search up
+	 * @readonly
+	*/
+	async fetch(endpoint, query = {}) {
+		try {
+			if (endpoint.startsWith('image') || endpoint == 'misc/qrcode') {
+				const { data } = await get(`https://api.egglord.dev/api/${endpoint}?${new URLSearchParams(query)}`, {
+					headers: { 'Authorization': this.config.api_keys.masterToken },
+					responseType: 'arraybuffer',
+				});
+				return data;
+			} else {
+				const { data } = await get(`https://api.egglord.dev/api/${endpoint}?${new URLSearchParams(query)}`, {
+					headers: { 'Authorization': this.config.api_keys.masterToken },
+				});
+
+				// Check if error or not
+				if (data.error) {
+					return { error: data.error };
+				} else {
+					return data.data;
+				}
+
+			}
+		} catch (err) {
+			const error = err.response?.data.error ?? 'API website currently down';
+			this.logger.error(error);
+			return { error: error };
 		}
 	}
 }

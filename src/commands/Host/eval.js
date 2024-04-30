@@ -1,6 +1,6 @@
 // Dependencies
 const { inspect } = require('util'),
-	{ EmbedBuilder, ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require ('discord.js'),
+	{ EmbedBuilder, ApplicationCommandOptionType } = require ('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +17,6 @@ class Eval extends Command {
 			name: 'eval',
 			ownerOnly: true,
 			dirname: __dirname,
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Evaluates JS code.',
 			usage: 'eval <code>',
 			cooldown: 3000,
@@ -44,7 +43,6 @@ class Eval extends Command {
 		const toEval = message.args.join(' ');
 		try {
 			if (toEval) {
-				// Auto-complete commands
 				const hrStart = process.hrtime(),
 					evaluated = await eval(toEval, { depth: 0 }),
 					hrDiff = process.hrtime(hrStart);
@@ -76,30 +74,25 @@ class Eval extends Command {
 	*/
 	async callback(bot, interaction, guild, args) {
 		const channel = guild.channels.cache.get(interaction.channelId),
-			{ settings } = guild,
 			toEval = args.get('code').value;
 
 		try {
-			if (toEval) {
-				// Auto-complete commands
-				const hrStart = process.hrtime(),
-					evaluated = await eval(toEval, { depth: 0 }),
-					hrDiff = process.hrtime(hrStart);
+			await interaction.deferReply();
+			const hrStart = process.hrtime(),
+				evaluated = await eval(toEval, { depth: 0 }),
+				hrDiff = process.hrtime(hrStart);
 
-				const embed = new EmbedBuilder()
-					.addFields(
-						{ name: 'Input:\n', value: '```js\n' + `${toEval.substring(0, 1010)}` + '```' },
-						{ name: 'Output:\n', value: '```js\n' + `${inspect(evaluated).substring(0, 1010)}` + '```' },
-						{ name: 'Time:\n', value: `*Executed in ${hrDiff[0] > 0 ? `${hrDiff[0]}s` : ''}${hrDiff[1] / 1000000}ms.*`, inline: true },
-						{ name: 'Type:\n', value: `${typeof (evaluated)}`, inline: true },
-					);
-				interaction.reply({ embeds: [embed] });
-			} else {
-				interaction.reply({ embeds: [channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(guild.translate('host/eval:USAGE')) }, true)] });
-			}
+			const embed = new EmbedBuilder()
+				.addFields(
+					{ name: 'Input:\n', value: '```js\n' + `${toEval.substring(0, 1010)}` + '```' },
+					{ name: 'Output:\n', value: '```js\n' + `${inspect(evaluated).substring(0, 1010)}` + '```' },
+					{ name: 'Time:\n', value: `*Executed in ${hrDiff[0] > 0 ? `${hrDiff[0]}s` : ''} ${hrDiff[1] / 1000000}ms.*`, inline: true },
+					{ name: 'Type:\n', value: `${typeof (evaluated)}`, inline: true },
+				);
+			interaction.followUp({ embeds: [embed] });
 		} catch (err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			interaction.reply({ embed: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message })] });
+			interaction.followUp({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
 		}
 	}
 }

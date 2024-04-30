@@ -23,20 +23,20 @@ class Nick extends Command {
 			usage: 'nick <user> <name>',
 			cooldown: 3000,
 			examples: ['nick username Not a nice name'],
-			slash: false,
+			slash: true,
 			options: [
-				{
-					name: 'user',
-					description: 'The user to change nickname.',
-					type: ApplicationCommandOptionType.User,
-					required: false,
-				},
 				{
 					name: 'name',
 					description: 'The nickname to give the user.',
 					type: ApplicationCommandOptionType.String,
 					maxLength: 32,
 					required: true,
+				},
+				{
+					name: 'user',
+					description: 'The user to change nickname.',
+					type: ApplicationCommandOptionType.User,
+					required: false,
 				},
 			],
 		});
@@ -63,7 +63,7 @@ class Nick extends Command {
 		if (!members[0]) return message.channel.error('moderation/ban:MISSING_USER');
 
 		// Make sure user user does not have ADMINISTRATOR permissions
-		if (members[0].permissions.has('ADMINISTRATOR') || (members[0].roles.highest.comparePositionTo(message.guild.members.me.roles.highest) > 0)) {
+		if (members[0].permissions.has(Flags.Administrator) || (members[0].roles.highest.comparePositionTo(message.guild.members.me.roles.highest) > 0)) {
 			return message.channel.error('moderation/nick:TOO_POWERFUL');
 		}
 
@@ -97,10 +97,10 @@ class Nick extends Command {
 	async callback(bot, interaction, guild, args) {
 		const member = guild.members.cache.get(args.get('user')?.value ?? interaction.user.id),
 			channel = guild.channels.cache.get(interaction.channelId),
-			nickname = args.get('nickname').value;
+			nickname = args.get('nickname')?.value ?? null;
 
 		// Make sure user user does not have ADMINISTRATOR permissions
-		if (member.permissions.has('ADMINISTRATOR') || (member.roles.highest.comparePositionTo(guild.members.me.roles.highest) > 0)) {
+		if (member.permissions.has(Flags.Administrator) || (member.roles.highest.comparePositionTo(guild.members.me.roles.highest) > 0)) {
 			interaction.reply({ embeds: [channel.error('moderation/nick:TOO_POWERFUL', null, true)] });
 		}
 
@@ -108,7 +108,7 @@ class Nick extends Command {
 		// Change nickname and tell user (send error message if dosen't work)
 		try {
 			await member.setNickname(nickname);
-			interaction.reply({ embeds: [channel.error('moderation/nick:SUCCESS', { USER: member.user }, true)] });
+			interaction.reply({ embeds: [channel.success('moderation/nick:SUCCESS', { USER: member.user }, true)] });
 		} catch (err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
 			interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)] });

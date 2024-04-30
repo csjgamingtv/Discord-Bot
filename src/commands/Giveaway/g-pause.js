@@ -18,12 +18,12 @@ class GiveawayPause extends Command {
 			dirname: __dirname,
 			aliases: ['giveaway-pause', 'gpause'],
 			userPermissions: [Flags.ManageGuild],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Pause a giveaway',
 			usage: 'g-pause <messageID>',
 			cooldown: 2000,
 			examples: ['g-pause 818821436255895612'],
 			slash: false,
+			isSubCmd: true,
 			options: [
 				{
 					name: 'id',
@@ -78,7 +78,7 @@ class GiveawayPause extends Command {
 			interaction.reply({ embeds: [channel.success('giveaway/g-pause:SUCCESS_GIVEAWAY', {}, true)] });
 		} catch (err) {
 			bot.logger.error(`Command: 'g-delete' has error: ${err}.`);
-			interaction.reply(bot.translate('giveaway/g-pause:UNKNOWN_GIVEAWAY', { ID: messageID }));
+			interaction.reply({ content: bot.translate('giveaway/g-pause:UNKNOWN_GIVEAWAY', { ID: messageID }), ephemeral: true });
 		}
 	}
 }

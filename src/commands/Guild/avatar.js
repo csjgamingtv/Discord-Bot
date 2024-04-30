@@ -1,6 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags }, GuildMember } = require('discord.js'),
+	{ ApplicationCommandOptionType, GuildMember } = require('discord.js'),
 	{ ChannelType } = require('discord-api-types/v10'),
 	Command = require('../../structures/Command.js');
 
@@ -19,7 +19,6 @@ class Avatar extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['av'],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Displays user\'s avatar.',
 			usage: 'avatar [user]',
 			cooldown: 2000,
@@ -76,8 +75,7 @@ class Avatar extends Command {
 	reply(bot, interaction, channel, userID) {
 		let member;
 		if (channel.type == ChannelType.DM) {
-			member = new GuildMember(bot, bot.users.cache.get(userID));
-			member._patch({ user: bot.users.cache.get(userID) });
+			member = new GuildMember(bot, { user: bot.users.cache.get(userID) });
 		} else {
 			member = channel.guild.members.cache.get(userID);
 		}
@@ -96,7 +94,7 @@ class Avatar extends Command {
 	*/
 	avatarEmbed(bot, guild, member) {
 		return new Embed(bot, guild)
-			.setTitle('guild/avatar:AVATAR_TITLE', { USER: member.user.tag })
+			.setTitle('guild/avatar:AVATAR_TITLE', { USER: member.user.displayName })
 			.setDescription([
 				`${bot.translate('guild/avatar:AVATAR_DESCRIPTION')}`,
 				`[png](${member.user.displayAvatarURL({ format: 'png', size: 1024 })}) | [jpg](${member.user.displayAvatarURL({ format: 'jpg', size: 1024 })}) | [gif](${member.user.displayAvatarURL({ format: 'gif', size: 1024, dynamic: true })}) | [webp](${member.user.displayAvatarURL({ format: 'webp', size: 1024 })})`,

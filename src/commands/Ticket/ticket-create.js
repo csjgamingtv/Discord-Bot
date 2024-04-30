@@ -1,6 +1,7 @@
 // Dependencies
 const { Embed } = require('../../utils'),
 	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ ChannelType } = require('discord-api-types/v10'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -24,6 +25,7 @@ class TicketCreate extends Command {
 			cooldown: 3000,
 			examples: ['t-create Something isn\'t working'],
 			slash: false,
+			isSubCmd: true,
 			options: [
 				{
 					name: 'reason',
@@ -62,10 +64,12 @@ class TicketCreate extends Command {
 
 		// create channel
 		try {
-			const channel = await message.guild.channels.create(`ticket-${message.author.id}`, { type: 'text',
+			const channel = await message.guild.channels.create({ name: `ticket-${message.author.id}`,
+				type: ChannelType.GuildText,
 				reason: reason,
 				parent: settings.TicketCategory,
-				permissionOverwrites: perms });
+				permissionOverwrites: perms,
+			});
 
 			// reply to user saying that channel has been created
 			const successEmbed = new Embed(bot, message.guild)
@@ -77,7 +81,7 @@ class TicketCreate extends Command {
 			const embed = new Embed(bot, message.guild)
 				.setColor(0xFF5555)
 				.addFields(
-					{ name: message.translate('ticket/ticket-create:FIELD1', { USERNAME: message.author.tag }), value: message.translate('ticket/ticket-create:FIELDT') },
+					{ name: message.translate('ticket/ticket-create:FIELD1', { USERNAME: message.author.displayName }), value: message.translate('ticket/ticket-create:FIELDT') },
 					{ name: message.translate('ticket/ticket-create:FIELD2'), value: reason },
 				)
 				.setTimestamp();
@@ -120,10 +124,12 @@ class TicketCreate extends Command {
 
 		// create channel
 		try {
-			channel = await guild.channels.create(`ticket-${interaction.user.id}`, { type: 'text',
+			channel = await guild.channels.create({ name: `ticket-${interaction.user.id}`,
+				type: ChannelType.GuildText,
 				reason: reason,
 				parent: settings.TicketCategory,
-				permissionOverwrites: perms });
+				permissionOverwrites: perms,
+			});
 
 			// reply to user saying that channel has been created
 			const successEmbed = new Embed(bot, guild)
@@ -135,7 +141,7 @@ class TicketCreate extends Command {
 			const embed = new Embed(bot, guild)
 				.setColor(0xFF5555)
 				.addFields(
-					{ name: guild.translate('ticket/ticket-create:FIELD1', { USERNAME: interaction.user.tag }), value: guild.translate('ticket/ticket-create:FIELDT') },
+					{ name: guild.translate('ticket/ticket-create:FIELD1', { USERNAME: interaction.user.displayName }), value: guild.translate('ticket/ticket-create:FIELDT') },
 					{ name: guild.translate('ticket/ticket-create:FIELD2'), value: reason },
 				)
 				.setTimestamp();

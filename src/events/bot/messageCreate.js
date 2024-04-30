@@ -38,10 +38,10 @@ class MessageCreate extends Event {
 		// Check if bot was mentioned
 		if (new RegExp(`/<@(!?)${bot.user.id}>/g`).test(message.content)) {
 			const embed = new EmbedBuilder()
-				.setAuthor({ name: bot.user.username, iconURL: bot.user.displayAvatarURL({ format: 'png' }) })
+				.setAuthor({ name: bot.user.displayName, iconURL: bot.user.displayAvatarURL({ format: 'png' }) })
 				.setThumbnail(bot.user.displayAvatarURL({ format: 'png' }))
 				.setDescription([
-					message.translate('events/message:INTRO', { USER: bot.user.username }),
+					message.translate('events/message:INTRO', { USER: bot.user.displayName }),
 					message.translate('events/message:INFO', { UPTIME: getReadableTime(bot.uptime), GUILDS: bot.guilds.cache.size, USERS: bot.guilds.cache.reduce((a, g) => a + g.memberCount, 0).toLocaleString(), CMDS: bot.commands.size }),
 					message.translate('events/message:PREFIX', { PREFIX: settings.prefix }),
 				].join('\n\n'))
@@ -60,7 +60,7 @@ class MessageCreate extends Event {
 		if (['@someone', '@person'].includes(message.content)) {
 			if (message.channel.type == 'dm') return message.channel.error('events/message:GUILD_ONLY');
 			await message.guild.members.fetch();
-			return message.channel.send({ embeds: [{ color: 'RANDOM', description:`Random user selected: ${message.guild.members.cache.random().user}.` }] });
+			return message.channel.send({ embeds: [{ color: bot.config.embedColor, description:`Random user selected: ${message.guild.members.cache.random().user}.` }] });
 		}
 
 		// Check if message was a command
@@ -87,19 +87,19 @@ class MessageCreate extends Event {
 			// make sure user is not on banned list
 			if (message.author.cmdBanned) {
 				if (message.deletable) message.delete();
-				return message.channel.error('events/message:BANNED_USER').then(m => m.timedDelete({ timeout: 5000 }));
+				return message.channel.error('events/message:BANNED_USER');
 			}
 
 			// Make sure guild only commands are done in the guild only
 			if (!message.guild && cmd.conf.guildOnly) {
 				if (message.deletable) message.delete();
-				return message.channel.error('events/message:GUILD_ONLY').then(m => m.timedDelete({ timeout: 5000 }));
+				return message.channel.error('events/message:GUILD_ONLY');
 			}
 
 			// Check to see if the command is being run in a blacklisted channel
 			if ((settings.CommandChannelToggle) && (settings.CommandChannels.includes(message.channel.id))) {
 				if (message.deletable) message.delete();
-				return message.channel.error('events/message:BLACKLISTED_CHANNEL', { USER: message.author.tag }).then(m => m.timedDelete({ timeout:5000 }));
+				return message.channel.error('events/message:BLACKLISTED_CHANNEL', { USER: message.author.displayName }).then(m => m.timedDelete({ timeout:5000 }));
 			}
 
 			// Make sure NSFW commands are only being run in a NSFW channel
@@ -137,7 +137,7 @@ class MessageCreate extends Event {
 					neededPermissions.forEach((item) => perms.add(BigInt(item)));
 					bot.logger.error(`Missing permission: \`${perms.toArray().join(', ')}\` in [${message.guild.id}].`);
 					if (message.deletable) message.delete();
-					return message.channel.error('misc:MISSING_PERMISSION', { PERMISSIONS: perms.toArray().map((p) => message.translate(`permissions:${p}`)).join(', ') }).then(m => m.timedDelete({ timeout: 10000 }));
+					return message.channel.error('misc:MISSING_PERMISSION', { PERMISSIONS: perms.toArray().map((p) => message.translate(`permissions:${p}`)).join(', ') });
 				}
 
 				// check user permissions
@@ -152,7 +152,7 @@ class MessageCreate extends Event {
 					const perms = new PermissionsBitField();
 					neededPermissions.forEach((item) => perms.add(BigInt(item)));
 					if (message.deletable) message.delete();
-					return message.channel.error('misc:USER_PERMISSION', { PERMISSIONS: perms.toArray().map((p) => message.translate(`permissions:${p}`)).join(', ') }).then(m => m.timedDelete({ timeout: 10000 }));
+					return message.channel.error('misc:USER_PERMISSION', { PERMISSIONS: perms.toArray().map((p) => message.translate(`permissions:${p}`)).join(', ') });
 				}
 			}
 
@@ -171,13 +171,13 @@ class MessageCreate extends Event {
 				if (now < expirationTime) {
 					const timeLeft = (expirationTime - now) / 1000;
 					if (message.deletable) message.delete();
-					return message.channel.error('events/message:COMMAND_COOLDOWN', { NUM: timeLeft.toFixed(1) }).then(m => m.timedDelete({ timeout:5000 }));
+					return message.channel.error('events/message:COMMAND_COOLDOWN', { NUM: timeLeft.toFixed(1) });
 				}
 			}
 
 			// run the command
 			bot.commandsUsed++;
-			if (bot.config.debug) bot.logger.debug(`Command: ${cmd.help.name} was ran by ${message.author.tag}${!message.guild ? ' in DM\'s' : ` in guild: ${message.guild.id}`}.`);
+			if (bot.config.debug) bot.logger.debug(`Command: ${cmd.help.name} was ran by ${message.author.displayName}${!message.guild ? ' in DM\'s' : ` in guild: ${message.guild.id}`}.`);
 			cmd.run(bot, message, settings);
 			timestamps.set(message.author.id, now);
 			setTimeout(() => timestamps.delete(message.author.id), cooldownAmount);

@@ -1,7 +1,7 @@
 // Dependencies
 const	{ Embed } = require('../../utils'),
 	fetch = require('node-fetch'),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ ApplicationCommandOptionType } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -18,7 +18,6 @@ class PHcomment extends Command {
 			name: 'phcomment',
 			dirname: __dirname,
 			aliases: ['ph', 'ph-comment'],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Create a fake Pornhub comment.',
 			usage: 'phcomment [user] <text>',
 			cooldown: 5000,
@@ -65,7 +64,7 @@ class PHcomment extends Command {
 
 		// Try and convert image
 		try {
-			const json = await fetch(encodeURI(`https://nekobot.xyz/api/imagegen?type=phcomment&username=${members[0].user.username}&image=${members[0].user.displayAvatarURL({ format: 'png', size: 512 })}&text=${text}`)).then(res => res.json());
+			const json = await fetch(encodeURI(`https://nekobot.xyz/api/imagegen?type=phcomment&username=${members[0].user.displayName}&image=${members[0].user.displayAvatarURL({ format: 'png', size: 512 })}&text=${text}`)).then(res => res.json());
 
 			// send image in embed
 			const embed = new Embed(bot, message.guild)
@@ -95,7 +94,7 @@ class PHcomment extends Command {
 		await interaction.reply({ content: guild.translate('misc:GENERATING_IMAGE', { EMOJI: bot.customEmojis['loading'] }) });
 
 		try {
-			const json = await fetch(encodeURI(`https://nekobot.xyz/api/imagegen?type=phcomment&username=${member.user.username}&image=${member.user.displayAvatarURL({ format: 'png', size: 512 })}&text=${text}`)).then(res => res.json());
+			const json = await fetch(encodeURI(`https://nekobot.xyz/api/imagegen?type=phcomment&username=${member.user.displayName}&image=${member.user.displayAvatarURL({ format: 'png', size: 512 })}&text=${text}`)).then(res => res.json());
 			const embed = new Embed(bot, guild)
 				.setColor(3447003)
 				.setImage(json.message);

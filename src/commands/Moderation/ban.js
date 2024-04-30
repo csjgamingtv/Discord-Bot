@@ -24,7 +24,7 @@ class Ban extends Command {
 			usage: 'ban <user> [reason] [time]',
 			cooldown: 5000,
 			examples: ['ban username spamming chat 4d', 'ban username raiding'],
-			slash: false,
+			slash: true,
 			options: [
 				{
 					name: 'user',
@@ -75,7 +75,7 @@ class Ban extends Command {
 		if (members[0].user.id == message.author.id) return message.channel.error('misc:SELF_PUNISH');
 
 		// Make sure user does not have ADMINISTRATOR permissions or has a higher role
-		if (members[0].permissions.has('ADMINISTRATOR') || members[0].roles.highest.comparePositionTo(message.guild.members.me.roles.highest) >= 0) {
+		if (members[0].permissions.has(Flags.Administrator) || members[0].roles.highest.comparePositionTo(message.guild.members.me.roles.highest) >= 0) {
 			return message.channel.error('moderation/ban:TOO_POWERFUL');
 		}
 
@@ -89,7 +89,7 @@ class Ban extends Command {
 					.setThumbnail(message.guild.iconURL())
 					.setDescription(message.translate('moderation/ban:DESC', { NAME: message.guild.name }))
 					.addFields(
-						{ name: message.translate('moderation/ban:BAN_BY'), value: message.author.tag, inline: true },
+						{ name: message.translate('moderation/ban:BAN_BY'), value: message.author.displayName, inline: true },
 						{ name: message.translate('misc:REASON'), value: reason, inline: true },
 					);
 				await members[0].send({ embeds: [embed] });
@@ -151,7 +151,7 @@ class Ban extends Command {
 		if (member.user.id == interaction.user.id) return interaction.reply({ embeds: [channel.error('misc:SELF_PUNISH', {}, true)], ephermal: true });
 
 		// Make sure user does not have ADMINISTRATOR permissions or has a higher role
-		if (member.permissions.has('ADMINISTRATOR') || member.roles.highest.comparePositionTo(guild.members.me.roles.highest) >= 0) {
+		if (member.permissions.has(Flags.Administrator) || member.roles.highest.comparePositionTo(guild.members.me.roles.highest) >= 0) {
 			return interaction.reply({ embeds: [channel.error('moderation/ban:TOO_POWERFUL', {}, true)], ephermal: true });
 		}
 
@@ -165,7 +165,7 @@ class Ban extends Command {
 					.setThumbnail(guild.iconURL())
 					.setDescription(guild.translate('moderation/ban:DESC', { NAME: guild.name }))
 					.addFields(
-						{ name: guild.translate('moderation/ban:BAN_BY'), value: interaction.user.tag, inline: true },
+						{ name: guild.translate('moderation/ban:BAN_BY'), value: interaction.user.displayName, inline: true },
 						{ name: guild.translate('misc:REASON'), value: reason, inline: true },
 					);
 				await member.send({ embeds: [embed] });
@@ -204,7 +204,7 @@ class Ban extends Command {
 			}
 		} catch (err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], fetchReply:true }).then(m => m.timedDelete({ timeout: 5000 }));
+			interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
 		}
 	}
 }

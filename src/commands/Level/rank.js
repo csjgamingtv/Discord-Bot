@@ -80,10 +80,10 @@ class Rank extends Command {
 		// Retrieve Rank from databse
 		try {
 			const res = await this.createRankCard(bot, guild, interaction.user, member, channel);
-			if (typeof (res) == 'object') {
+			if (res.attachment && res.name == 'RankCard.png') {
 				await interaction.reply({ files: [res] });
 			} else {
-				await interaction.reply({ content: res });
+				await interaction.reply({ embeds: [res] });
 			}
 		} catch (err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
@@ -102,7 +102,7 @@ class Rank extends Command {
 	*/
 	async createRankCard(bot, guild, author, target, channel) {
 		// make sure it's not a bot
-		if (target.user.bot) return channel.error('level/rank:NO_BOTS', { }, true);
+		if (target.user.bot) return channel.error('level/rank:NO_BOTS', null, true);
 
 		// sort and find user
 		const res = guild.levels.sort(({ Xp: a }, { Xp: b }) => b - a);
@@ -110,8 +110,8 @@ class Rank extends Command {
 
 		// if they haven't send any messages
 		if (!user) {
-			if (author.id == target.user.id) return channel.error('level/rank:NO_MESSAGES', { ERROR: null }, true);
-			return channel.error('level/rank:MEMBER_MESSAGE', { ERROR: null }, true);
+			if (author.id == target.user.id) return channel.error('level/rank:NO_MESSAGES', null, true);
+			return channel.error('level/rank:MEMBER_MESSAGE', null, true);
 		}
 
 		// Get rank
@@ -126,13 +126,11 @@ class Rank extends Command {
 			.setRequiredXP((5 * (user.Level ** 2) + 50 * user.Level + 100) - (user.Level == 1 ? 0 : (5 * ((user.Level - 1) ** 2) + 50 * (user.Level - 1) + 100)))
 			.setStatus(target.presence?.status ?? 'dnd')
 			.setProgressBar(['#FFFFFF', '#DF1414'], 'GRADIENT')
-			.setUsername(target.user.username)
-			.setDiscriminator(target.user.discriminator);
-		//	if (target.user.rankImage && target.user.premium) rankcard.setBackground('IMAGE', target.user.rankImage);
+			.setUsername(target.user.displayName);
+		if (target.user.rankImage && target.user.premium) rankcard.setBackground('IMAGE', target.user.rankImage);
 
 		// create rank card
 		const buffer = await rankcard.build();
-		console.log(buffer);
 		return new AttachmentBuilder(buffer, { name: 'RankCard.png' });
 	}
 }

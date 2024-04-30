@@ -1,7 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
-	fetch = require('node-fetch'),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ ApplicationCommandOptionType, AttachmentBuilder } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +16,6 @@ class Ship extends Command {
 		super(bot, {
 			name: 'ship',
 			dirname: __dirname,
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Create a ship image.',
 			usage: 'ship <user1> [user2]',
 			cooldown: 5000,
@@ -57,12 +55,19 @@ class Ship extends Command {
 
 		// Try and convert image
 		try {
-			const json = await fetch(encodeURI(`https://nekobot.xyz/api/imagegen?type=ship&user1=${files[0]}&user2=${files[1]}`)).then(res => res.json());
+			const resp = await bot.fetch('image/distracted', { image1: files[0], image2: files[1] });
 
-			// send image
+			// Check if an object was sent instead (probs an error)
+			const isObject = typeof resp.toString() == 'object';
+			if (isObject) {
+				const possibleError = JSON.parse(resp.toString())?.error;
+				if (possibleError) throw new Error(possibleError);
+			}
+
+			const attachment = new AttachmentBuilder(Buffer.from(resp, 'base64'), { name: 'distracted.png' });
 			const embed = new Embed(bot, message.guild)
-				.setImage(json.message);
-			message.channel.send({ embeds: [embed] });
+				.setImage('attachment://distracted.png');
+			message.channel.send({ embeds: [embed], files: [attachment] });
 		} catch(err) {
 			if (message.deletable) message.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
@@ -87,11 +92,19 @@ class Ship extends Command {
 		await interaction.reply({ content: guild.translate('misc:GENERATING_IMAGE', { EMOJI: bot.customEmojis['loading'] }) });
 
 		try {
-			const json = await fetch(encodeURI(`https://nekobot.xyz/api/imagegen?type=ship&user1=${member.user.displayAvatarURL({ format: 'png', size: 512 })}&user2=${member2.user.displayAvatarURL({ format: 'png', size: 512 })}`)).then(res => res.json());
+			const resp = await bot.fetch('image/distracted', { image1: member.user.displayAvatarURL({ format: 'png', size: 1024 }), image2:  member2.user.displayAvatarURL({ format: 'png', size: 512 }) });
+
+			// Check if an object was sent instead (probs an error)
+			const isObject = typeof resp.toString() == 'object';
+			if (isObject) {
+				const possibleError = JSON.parse(resp.toString())?.error;
+				if (possibleError) throw new Error(possibleError);
+			}
+
+			const attachment = new AttachmentBuilder(Buffer.from(resp, 'base64'), { name: 'distracted.png' });
 			const embed = new Embed(bot, guild)
-				.setColor(3447003)
-				.setImage(json.message);
-			interaction.editReply({ content: ' ', embeds: [embed] });
+				.setImage('attachment://distracted.png');
+			interaction.editReply({ content: ' ', embeds: [embed], files: [attachment] });
 		} catch(err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
 			return interaction.editReply({ content: ' ', embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });

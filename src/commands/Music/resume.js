@@ -22,6 +22,7 @@ class Resume extends Command {
 			description: 'Resumes the music.',
 			usage: 'resume',
 			cooldown: 3000,
+			slash: true,
 		});
 	}
 
@@ -67,7 +68,7 @@ class Resume extends Command {
 
 		// Resumes the music
 		player.pause(false);
-		return interaction.reply({ embeds: [channel.error('music/resume:SUCCESS', {}, true)] });
+		return interaction.reply({ embeds: [channel.success('music/resume:SUCCESS', {}, true)] });
 	}
 }
 

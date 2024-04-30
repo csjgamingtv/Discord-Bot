@@ -21,7 +21,7 @@ module.exports = async (bot) => {
 			if (new Date() >= new Date(event.time)) {
 				switch(event.type) {
 					case 'ban': {
-						bot.logger.debug(`Unbanning ${user.tag} in guild: ${guild.id}.`);
+						bot.logger.debug(`Unbanning ${user.displayName} in guild: ${guild.id}.`);
 
 						// unban user from guild
 						try {
@@ -31,16 +31,16 @@ module.exports = async (bot) => {
 							if (!bUser) return;
 
 							await guild.members.unban(bUser.user);
-							const channel = bot.channels.cache.get(event.channelID);
-							if (channel) await channel.success('moderation/unban:SUCCESS', { USER: user }).then(m => m.timedDelete({ timeout: 3000 }));
+							await bot.channels.cache.get(event.channelID)?.success('moderation/unban:SUCCESS', { USER: user }).then(m => m.timedDelete({ timeout: 3000 }));
+							await timeEventSchema.findByIdAndRemove(event._id);
 						} catch (err) {
 							bot.logger.error(`Error: ${err.message} when trying to unban user. (timed event)`);
-							bot.channels.cache.get(event.channelID)?.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+							bot.channels.cache.get(event.channelID)?.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 						}
 						break;
 					}
 					case 'reminder': {
-						bot.logger.debug(`Reminding ${bot.users.cache.get(event.userID).tag}`);
+						bot.logger.debug(`Reminding ${bot.users.cache.get(event.userID).displayName}`);
 
 						// Message user about reminder
 						const attachment = new AttachmentBuilder('./src/assets/imgs/Timer.png', { name: 'Timer.png' });
@@ -51,6 +51,7 @@ module.exports = async (bot) => {
 							.setFooter({ text: guild.translate('fun/reminder:FOOTER', { TIME: ms(event.time, { long: true }) }) });
 						try {
 							await bot.users.cache.get(event.userID).send({ embeds: [embed], files: [attachment] });
+							await timeEventSchema.findByIdAndRemove(event._id);
 						} catch (err) {
 							bot.logger.error(`Error: ${err.message} when sending reminder to user. (timed event)`);
 							bot.channels.cache.get(event.channelID)?.send(guild.translate('fun/reminder:RESPONSE', { USER: user.id, INFO: event.message }));
@@ -73,13 +74,16 @@ module.exports = async (bot) => {
 											b = new Date(event.time).getTime();
 
 										// Delete warning
-										if (Math.abs(a, b) <= 4000) await WarningSchema.findByIdAndRemove(warn._id);
+										if (Math.abs(a, b) <= 4000) {
+											await WarningSchema.findByIdAndRemove(warn._id);
+											await timeEventSchema.findByIdAndRemove(event._id);
+										}
 									}
 								}
 							}
 						} catch (err) {
 							bot.logger.error(`Error: ${err.message} fetching warns. (timed events)`);
-							return bot.channels.cache.get(event.channelID)?.error('misc:ERROR_MESSAGE', { ERROR: err.message }).then(m => m.timedDelete({ timeout: 5000 }));
+							return bot.channels.cache.get(event.channelID)?.error('misc:ERROR_MESSAGE', { ERROR: err.message });
 						}
 						break;
 					case 'premium': {

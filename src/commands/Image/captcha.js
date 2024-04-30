@@ -1,7 +1,7 @@
 // Dependencies
 const { Embed } = require('../../utils'),
 	fetch = require('node-fetch'),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ ApplicationCommandOptionType } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +17,6 @@ class Captcha extends Command {
 		super(bot, {
 			name: 'captcha',
 			dirname: __dirname,
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Create a captcha image.',
 			usage: 'captcha',
 			cooldown: 5000,
@@ -48,7 +47,7 @@ class Captcha extends Command {
 
 		// Try and convert image
 		try {
-			const json = await fetch(encodeURI(`https://nekobot.xyz/api/imagegen?type=captcha&username=${members[0].user.username}&url=${members[0].user.displayAvatarURL({ format: 'png', size: 512 })}`)).then(res => res.json());
+			const json = await fetch(encodeURI(`https://nekobot.xyz/api/imagegen?type=captcha&username=${members[0].user.displayName}&url=${members[0].user.displayAvatarURL({ format: 'png', size: 512 })}`)).then(res => res.json());
 
 			// send image
 			const embed = new Embed(bot, message.guild)
@@ -77,7 +76,7 @@ class Captcha extends Command {
 		await interaction.reply({ content: guild.translate('misc:GENERATING_IMAGE', {
 			EMOJI: bot.customEmojis['loading'] }) });
 		try {
-			const json = await fetch(encodeURI(`https://nekobot.xyz/api/imagegen?type=captcha&username=${member.user.username}&url=${member.user.displayAvatarURL({ format: 'png', size: 512 })}`)).then(res => res.json());
+			const json = await fetch(encodeURI(`https://nekobot.xyz/api/imagegen?type=captcha&username=${member.user.displayName}&url=${member.user.displayAvatarURL({ format: 'png', size: 512 })}`)).then(res => res.json());
 			const embed = new Embed(bot, guild)
 				.setColor(3447003)
 				.setImage(json.message);

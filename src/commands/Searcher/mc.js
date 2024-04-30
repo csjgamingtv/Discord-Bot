@@ -1,6 +1,5 @@
 // Dependencies
-const { status } = require('minecraft-server-util'),
-	{ AttachmentBuilder, ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+const	{ AttachmentBuilder, ApplicationCommandOptionType } = require('discord.js'),
 	{ Embed } = require('../../utils'),
 	Command = require('../../structures/Command.js');
 
@@ -18,7 +17,6 @@ class Minecraft extends Command {
 			name: 'mc',
 			dirname: __dirname,
 			aliases: ['minecraft'],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Pings a minecraft for information.',
 			usage: 'mc <IP> [Port]',
 			cooldown: 3000,
@@ -80,16 +78,18 @@ class Minecraft extends Command {
 			IP = args.get('ip').value,
 			port = args.get('port')?.value ?? 25565;
 
+		await interaction.reply({ content: guild.translate('misc:FETCHING', {	EMOJI: bot.customEmojis['loading'], ITEM: 'Image' }) });
+
 		try {
 			const resp = await this.createEmbed(bot, guild, channel, IP, port);
 			if (Array.isArray(resp)) {
-				await interaction.reply({ embeds: [resp[0]], files: [resp[1]] });
+				await interaction.editReply({ content: ' ', embeds: [resp[0]], files: [resp[1]] });
 			} else {
-				await interaction.reply({ embeds: [resp] });
+				await interaction.editReply({ content: ' ', embeds: [resp] });
 			}
 		} catch (err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
-			return interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
+			return interaction.editReply({ content: ' ', embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
 		}
 	}
 
@@ -104,7 +104,9 @@ class Minecraft extends Command {
 	*/
 	async createEmbed(bot, guild, channel, IP, port) {
 		try {
-			const response = await status(IP, parseInt(port));
+			const response = await bot.fetch('games/mc', { ip: IP, port: port });
+			if (response.error) throw new Error(response.error);
+
 			// turn favicon to thumbnail
 			let attachment;
 			if (response.favicon) {

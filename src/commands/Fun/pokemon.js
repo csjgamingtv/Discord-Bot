@@ -1,7 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
-	fetch = require('node-fetch'),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ ApplicationCommandOptionType } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -17,7 +16,6 @@ class Pokemon extends Command {
 		super(bot, {
 			name: 'pokemon',
 			dirname: __dirname,
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Get information on a pokemon.',
 			usage: 'pokemon <pokemon>',
 			cooldown: 1000,
@@ -25,11 +23,7 @@ class Pokemon extends Command {
 			slash: true,
 			options: [{
 				name: 'pokemon',
-				nameLocalized: 'en-US',
-				// nameLocalizations: bot.languages.map(({ name }) => ({ [name]: bot.translate(`${this.help.category.toLowerCase()}/${this.help.name}:USAGE`, {}, name) }), bot.commands.get('pokemon')),
 				description: 'The specified pokemon to gather information on.',
-				// descriptionLocalized: 'en-Us',
-				//	descriptionLocalizations:bot.languages.map(({ name }) => ({ [name]: bot.translate(`${this.help.category.toLowerCase()}/${this.help.name}:USAGE`, {}, name) }), bot.commands.get('pokemon')),
 				type: ApplicationCommandOptionType.String,
 				required: true,
 			}],
@@ -48,7 +42,7 @@ class Pokemon extends Command {
 		const pokemon = message.args.join(' ');
 		if (!pokemon) {
 			if (message.deletable) message.delete();
-			return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('fun/pokemon:USAGE')) }).then(m => m.timedDelete({ timeout: 5000 }));
+			return message.channel.error('misc:INCORRECT_FORMAT', { EXAMPLE: settings.prefix.concat(message.translate('fun/pokemon:USAGE')) });
 		}
 
 		// send 'waiting' message to show bot has recieved message
@@ -58,14 +52,7 @@ class Pokemon extends Command {
 		// Search for pokemon
 
 		try {
-			const res = await fetch(`https://courses.cs.washington.edu/courses/cse154/webservices/pokedex/pokedex.php?pokemon=${pokemon}`).then(info => info.json());
-
-			// Send response to channel
-			const embed = new Embed(bot, message.guild)
-				.setAuthor({ name: res.name, iconURL: `https://courses.cs.washington.edu/courses/cse154/webservices/pokedex/${res.images.typeIcon}` })
-				.setDescription(`Type of this pokemon is **${res.info.type}**. ${res.info.description}`)
-				.setThumbnail(`https://courses.cs.washington.edu/courses/cse154/webservices/pokedex/${res.images.photo}`)
-				.setFooter({ text: `Weakness of pokemon - ${res.info.weakness}`, iconURL: `https://courses.cs.washington.edu/courses/cse154/webservices/pokedex/${res.images.weaknessIcon}` });
+			const embed = await this.fetchPokemonData(bot, message.guild, pokemon);
 			msg.delete();
 			message.channel.send({ embeds: [embed] });
 		} catch (err) {
@@ -91,20 +78,28 @@ class Pokemon extends Command {
 
 		// Search for pokemon
 		try {
-			const res = await fetch(`https://courses.cs.washington.edu/courses/cse154/webservices/pokedex/pokedex.php?pokemon=${pokemon}`).then(info => info.json());
+			const embed = await this.fetchPokemonData(bot, channel.guild, pokemon);
 
-			// Send response to channel
-			const embed = new Embed(bot, guild)
-				.setAuthor({ name: res.name, iconURL: `https://courses.cs.washington.edu/courses/cse154/webservices/pokedex/${res.images.typeIcon}` })
-				.setDescription(`Type of this pokemon is **${res.info.type}**. ${res.info.description}`)
-				.setThumbnail(`https://courses.cs.washington.edu/courses/cse154/webservices/pokedex/${res.images.photo}`)
-				.setFooter({ text:`Weakness of pokemon - ${res.info.weakness}`, iconURL:`https://courses.cs.washington.edu/courses/cse154/webservices/pokedex/${res.images.weaknessIcon}` });
 			return interaction.reply({ embeds: [embed] });
 		} catch (err) {
 			// An error occured when looking for account
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
 			return interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
 		}
+	}
+
+	async fetchPokemonData(bot, guild, name) {
+		const pokemon = await bot.fetch('misc/pokemon', { pokemon: name });
+		if (pokemon.error) throw new Error(pokemon.error);
+
+		// Send response to channel
+		const embed = new Embed(bot, guild)
+			.setAuthor({ name: pokemon.name, iconURL: `https://courses.cs.washington.edu/courses/cse154/webservices/pokedex/${pokemon.images.typeIcon}` })
+			.setDescription(`Type of this pokemon is **${pokemon.info.type}**. ${pokemon.info.description}`)
+			.setThumbnail(`https://courses.cs.washington.edu/courses/cse154/webservices/pokedex/${pokemon.images.photo}`)
+			.setFooter({ text:`Weakness of pokemon - ${pokemon.info.weakness}`, iconURL:`https://courses.cs.washington.edu/courses/cse154/webservices/pokedex/${pokemon.images.weaknessIcon}` });
+
+		return embed;
 	}
 }
 

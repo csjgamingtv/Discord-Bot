@@ -1,5 +1,5 @@
 // Dependencies
-const	{ AttachmentBuilder, ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+const	{ AttachmentBuilder, ApplicationCommandOptionType } = require('discord.js'),
 	{ Embed } = require('../../utils'),
 	Command = require('../../structures/Command.js');
 
@@ -17,7 +17,6 @@ class QRcode extends Command {
 			name: 'qrcode',
 			dirname: __dirname,
 			aliases: ['qr-code'],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Create a QR code.',
 			usage: 'qrcode <text / file>',
 			cooldown: 5000,
@@ -48,8 +47,9 @@ class QRcode extends Command {
 
 		// Try and convert image
 		try {
-			const attachment = new AttachmentBuilder(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${text.replace(/ /g, '%20')}`, { name: 'QRCODE.png' });
-			// send image in embed
+			const resp = await bot.fetch('misc/qrcode', { url: text });
+
+			const attachment = new AttachmentBuilder(Buffer.from(resp, 'base64'), { name: 'QRCODE.png' });
 			const embed = new Embed(bot, message.guild)
 				.setImage('attachment://QRCODE.png');
 			message.channel.send({ embeds: [embed], files: [attachment] });
@@ -76,7 +76,16 @@ class QRcode extends Command {
 		await interaction.reply({ content: guild.translate('misc:GENERATING_IMAGE', { EMOJI: bot.customEmojis['loading'] }) });
 
 		try {
-			const attachment = new AttachmentBuilder(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${text.replace(/ /g, '%20')}`, { name: 'QRCODE.png' });
+			const resp = await bot.fetch('misc/qrcode', { url: text });
+
+			// Check if an object was sent instead (probs an error)
+			const isObject = typeof resp.toString() == 'object';
+			if (isObject) {
+				const possibleError = JSON.parse(resp.toString())?.error;
+				if (possibleError) throw new Error(possibleError);
+			}
+
+			const attachment = new AttachmentBuilder(Buffer.from(resp, 'base64'), { name: 'QRCODE.png' });
 			const embed = new Embed(bot, guild)
 				.setImage('attachment://QRCODE.png');
 			interaction.editReply({ content: ' ', embeds: [embed], files: [attachment] });

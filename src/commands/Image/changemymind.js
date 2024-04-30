@@ -1,7 +1,6 @@
 // Dependencies
 const { Embed } = require('../../utils'),
-	fetch = require('node-fetch'),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ AttachmentBuilder, ApplicationCommandOptionType } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -18,7 +17,6 @@ class ChangeMyMind extends Command {
 			name: 'changemymind',
 			dirname: __dirname,
 			aliases: ['cmm'],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Create a change my mind image.',
 			usage: 'changemymind <text>',
 			cooldown: 5000,
@@ -57,13 +55,12 @@ class ChangeMyMind extends Command {
 
 		// Try and convert image
 		try {
-			const json = await fetch(encodeURI(`https://nekobot.xyz/api/imagegen?type=changemymind&text=${text}`)).then(res => res.json());
+			const resp = await bot.fetch('image/changemymind', { text });
 
-			// send image
+			const attachment = new AttachmentBuilder(Buffer.from(resp, 'base64'), { name: 'changemymind.png' });
 			const embed = new Embed(bot, message.guild)
-				.setColor(2067276)
-				.setImage(json.message);
-			message.channel.send({ embeds: [embed] });
+				.setImage('attachment://changemymind.png');
+			message.channel.send({ embeds: [embed], files: [attachment] });
 		} catch(err) {
 			if (message.deletable) message.delete();
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
@@ -83,15 +80,22 @@ class ChangeMyMind extends Command {
 	async callback(bot, interaction, guild, args) {
 		const text = args.get('text').value,
 			channel = guild.channels.cache.get(interaction.channelId);
-
 		await interaction.reply({ content: guild.translate('misc:GENERATING_IMAGE', { EMOJI: bot.customEmojis['loading'] }) });
 
 		try {
-			const json = await fetch(encodeURI(`https://nekobot.xyz/api/imagegen?type=changemymind&text=${text}`)).then(res => res.json());
+			const resp = await bot.fetch('image/changemymind', { text });
+
+			// Check if an object was sent instead (probs an error)
+			const isObject = typeof resp.toString() == 'object';
+			if (isObject) {
+				const possibleError = JSON.parse(resp.toString())?.error;
+				if (possibleError) throw new Error(possibleError);
+			}
+
+			const attachment = new AttachmentBuilder(Buffer.from(resp, 'base64'), { name: 'changemymind.png' });
 			const embed = new Embed(bot, guild)
-				.setColor(3447003)
-				.setImage(json.message);
-			interaction.editReply({ content: ' ', embeds: [embed] });
+				.setImage('attachment://changemymind.png');
+			interaction.editReply({ content: ' ', embeds: [embed], files: [attachment] });
 		} catch(err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
 			return interaction.editReply({ content: ' ', embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });

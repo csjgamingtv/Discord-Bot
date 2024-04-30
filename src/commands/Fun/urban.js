@@ -1,6 +1,5 @@
 // Dependencies
-const { define } = require('urban-dictionary'),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+const { ApplicationCommandOptionType } = require('discord.js'),
 	{ Embed } = require('../../utils'),
 	Command = require('../../structures/Command.js');
 
@@ -18,7 +17,6 @@ class Urban extends Command {
 			name: 'urban',
 			nsfw: true,
 			dirname: __dirname,
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Get the urban dictionary of a word.',
 			usage: 'urban <word>',
 			cooldown: 1000,
@@ -85,17 +83,18 @@ class Urban extends Command {
 	*/
 	async fetchDefinition(bot, guild, phrase, channel) {
 		try {
-			const resp = await define(phrase);
+			const definitions = await bot.fetch('info/urban-dictionary', { phrase: phrase });
+			if (definitions.error) throw new Error(definitions.error);
 
 			// send definition of word
 			return new Embed(bot, guild)
 				.setTitle('fun/urban:TITLE', { WORD: phrase })
-				.setURL(resp[0].permalink)
+				.setURL(definitions[0].permalink)
 				.setThumbnail('https://i.imgur.com/VFXr0ID.jpg')
-				.setDescription(guild.translate('fun/urban:DESC', { DEFINTION: resp[0].definition, EXAMPLES: resp[0].example }))
+				.setDescription(guild.translate('fun/urban:DESC', { DEFINTION: definitions[0].definition, EXAMPLES: definitions[0].example }))
 				.addFields(
-					{ name: '👍', value: `${resp[0].thumbs_up}`, inline: true },
-					{ name: '👎', value: `${resp[0].thumbs_down}`, inline: true },
+					{ name: '👍', value: `${definitions[0].thumbs_up}`, inline: true },
+					{ name: '👎', value: `${definitions[0].thumbs_down}`, inline: true },
 				);
 		} catch (err) {
 			bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);

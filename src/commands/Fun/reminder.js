@@ -1,6 +1,6 @@
 // Dependencies
 const ms = require('ms'),
-	{ MessageAttachment, ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ AttachmentBuilder, ApplicationCommandOptionType } = require('discord.js'),
 	{ timeEventSchema } = require('../../database/models'),
 	{ time: { getTotalTime }, Embed } = require('../../utils'),
 	Command = require('../../structures/Command.js');
@@ -19,7 +19,6 @@ class Reminder extends Command {
 			name: 'reminder',
 			dirname: __dirname,
 			aliases: ['remindme'],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Set a reminder.',
 			usage: 'reminder <time> <information>',
 			cooldown: 1000,
@@ -78,7 +77,7 @@ class Reminder extends Command {
 			// Once time is up send reply
 			setTimeout(async () => {
 				// send embed to author's DM
-				const attachment = new MessageAttachment('./src/assets/imgs/Timer.png', 'Timer.png');
+				const attachment = new AttachmentBuilder('./src/assets/imgs/Timer.png', { name: 'Timer.png' });
 				const embed = new Embed(bot, message.guild)
 					.setTitle('fun/reminder:TITLE')
 					.setThumbnail('attachment://Timer.png')
@@ -112,7 +111,7 @@ class Reminder extends Command {
 
 		// Get time
 		const { error, success: time } = getTotalTime(args.get('time').value);
-		if (error) return interaction.reply({ embeds: [channel.error(error, null, true)] });
+		if (error) return interaction.reply({ embeds: [channel.error(error, null, true)], ephemeral: true });
 
 		// send reminder
 		try {
@@ -134,7 +133,7 @@ class Reminder extends Command {
 			// Once time is up send reply
 			setTimeout(async () => {
 				// send embed to author's DM
-				const attachment = new MessageAttachment('./src/assets/imgs/Timer.png', 'Timer.png');
+				const attachment = new AttachmentBuilder('./src/assets/imgs/Timer.png', { name: 'Timer.png' });
 				const embed = new Embed(bot, guild)
 					.setTitle('fun/reminder:TITLE')
 					.setThumbnail('attachment://Timer.png')

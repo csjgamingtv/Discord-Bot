@@ -66,7 +66,7 @@ class MessageReactionAdd extends Event {
 					}
 				} catch (err) {
 					const channel = await bot.channels.fetch(dbReaction.channelID).catch(() => bot.logger.error(`Missing channel for reaction role in guild: ${guild.id}`));
-					if (channel) channel.send(`I am missing permission to give ${member} the role: ${guild.roles.cache.get(rreaction.roleID)}`).then(m => m.timedDelete({ timeout: 5000 }));
+					if (channel) channel.error(`I am missing permission to give ${member} the role: ${guild.roles.cache.get(rreaction.roleID)}`);
 				}
 			}
 		}
@@ -81,7 +81,7 @@ class MessageReactionAdd extends Event {
 				.setDescription(`**${user.toString()} reacted with ${reaction.emoji.toString()} to [this message](${reaction.message.url})** `)
 				.setColor(3066993)
 				.setFooter({ text: `User: ${user.id} | Message: ${reaction.message.id} ` })
-				.setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
+				.setAuthor({ name: user.displayName, iconURL: user.displayAvatarURL() })
 				.setTimestamp();
 
 			// Find channel and send message

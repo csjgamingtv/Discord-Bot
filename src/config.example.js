@@ -5,29 +5,12 @@ const config = {
 	token: 'YourBotToken',
 	// For looking up Twitch, Fortnite, Steam accounts
 	api_keys: {
-		// https://dev.twitch.tv/console/apps
-		twitch: {
-			clientID: '',
-			clientSecret: '',
-		},
-		// https://fortnitetracker.com/site-api
-		fortnite: 'fortniteAPI-Key',
-		// https://steamcommunity.com/dev
-		steam: 'steamAPI-Key',
-		// https://developer.spotify.com/documentation/web-api/
-		spotify: {
-			iD: 'spotify-ID',
-			secret: 'spotify-secret',
-		},
-		// Your Ubisoft email and password (You don't need to enable anything)
-		rainbow: {
-			email: 'email',
-			password: 'password',
-		},
 		// https://genius.com/developers
 		genius: 'genuisAPI-KEY',
 		// https://api.amethyste.moe/
 		amethyste: 'amethysteAPI-Key',
+		// https://api.egglord.dev/settings
+		masterToken: '',
 	},
 	// add plugins/commands here if you don't want them loaded in the bot.
 	disabledCommands: [],
@@ -52,6 +35,11 @@ const config = {
 		port: 3000,
 		secure: true,
 		token: '123456789',
+	},
+	Staff: {
+		ContributorRole: "814645275544387705",
+		SupportRole: "740674583023321200",
+		DeveloperRole: "740682780467396705",
 	},
 	LavalinkNodes: [
 		{ host: 'localhost', port: 5000, password: 'youshallnotpass' },

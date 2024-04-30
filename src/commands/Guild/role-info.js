@@ -1,8 +1,7 @@
 // Dependencies
 const { Embed } = require('../../utils'),
 	moment = require('moment'),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags },
-	} = require('discord.js'),
+	{ ApplicationCommandOptionType } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -20,7 +19,6 @@ class RoleInfo extends Command {
 			guildOnly: true,
 			dirname: __dirname,
 			aliases: ['roleinfo'],
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Get information on a role.',
 			usage: 'role-info <role>',
 			cooldown: 2000,
@@ -89,7 +87,7 @@ class RoleInfo extends Command {
 		// Send information to channel
 		return new Embed(bot, guild)
 			.setColor(role.color)
-			.setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
+			.setAuthor({ name: user.displayName, iconURL: user.displayAvatarURL() })
 			.setDescription(guild.translate('guild/role-info:NAME', { NAME: role.name }))
 			.addFields(
 				{ name: guild.translate('guild/role-info:MEMBERS'), value: role.members.size.toLocaleString(guild.settings.Language), inline: true },
@@ -102,7 +100,7 @@ class RoleInfo extends Command {
 				{ name: guild.translate('guild/role-info:CREATED'), value: moment(role.createdAt).format('lll') },
 			)
 			.setTimestamp()
-			.setFooter({ text: guild.translate('guild/role-info:FOOTER', { MEMBER: user.tag, ID: role.id }) });
+			.setFooter({ text: guild.translate('guild/role-info:FOOTER', { MEMBER: user.displayName, ID: role.id }) });
 	}
 }
 

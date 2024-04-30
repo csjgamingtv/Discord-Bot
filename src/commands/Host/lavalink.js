@@ -1,7 +1,7 @@
 // Dependencies
 const	{ Embed } = require('../../utils'),
-	{ Node } = require('erela.js'),
-	{ ApplicationCommandOptionType, PermissionsBitField: { Flags } } = require('discord.js'),
+	{ Node } = require('magmastream'),
+	{ ApplicationCommandOptionType } = require('discord.js'),
 	Command = require('../../structures/Command.js');
 
 /**
@@ -18,18 +18,16 @@ class Lavalink extends Command {
 			name: 'lavalink',
 			ownerOnly: true,
 			dirname: __dirname,
-			botPermissions: [Flags.SendMessages, Flags.EmbedLinks],
 			description: 'Interact with the Lavalink nodes',
 			usage: 'lavalink [list | add | remove] <information>',
 			cooldown: 3000,
 			slash: true,
-			options: [{
-				name: 'option',
-				description: 'The link or name of the track.',
-				type: ApplicationCommandOptionType.String,
-				choices: [...['list', 'add', 'remove'].map(i => ({ name: i, value: i }))],
-				required: true,
-			}],
+			options: bot.subCommands.filter(c => c.help.name.startsWith('lavalink-')).map(c => ({
+				name: c.help.name.replace('lavalink-', ''),
+				description: c.help.description,
+				type: ApplicationCommandOptionType.Subcommand,
+				options: c.conf.options,
+			})),
 		});
 	}
 
@@ -118,10 +116,16 @@ class Lavalink extends Command {
 	 * @param {bot} bot The instantiating client
 	 * @param {interaction} interaction The interaction that ran the command
 	 * @param {guild} guild The guild the interaction ran in
+	 * @param {args} args The options provided in the command, if any
 	 * @readonly
 	*/
-	async callback(bot, interaction) {
-		interaction.reply({ content: 'This is currently unavailable.' });
+	async callback(bot, interaction, guild, args) {
+		const command = bot.subCommands.get(`lavalink-${interaction.options.getSubcommand()}`);
+		if (command) {
+			command.callback(bot, interaction, guild, args);
+		} else {
+			interaction.reply({ content: 'Error', ephemeral: true });
+		}
 	}
 
 	/**

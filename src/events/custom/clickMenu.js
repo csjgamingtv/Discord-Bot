@@ -1,7 +1,5 @@
 // Dependencies
-const	translate = require('@vitalets/google-translate-api'),
-	optiic = new (require('optiic')),
-	{ Collection } = require('discord.js'),
+const	{ Collection, ModalBuilder, TextInputStyle, TextInputBuilder, ActionRowBuilder } = require('discord.js'),
 	{ ChannelType } = require('discord-api-types/v10'),
 	Event = require('../../structures/Event');
 
@@ -46,7 +44,7 @@ class ClickMenu extends Event {
 		}
 
 		// Run context menu
-		if (bot.config.debug) bot.logger.debug(`Context menu: ${interaction.commandName} was ran by ${interaction.user.username}.`);
+		if (bot.config.debug) bot.logger.debug(`Context menu: ${interaction.commandName} was ran by ${interaction.user.displayName}.`);
 		setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
 
 		switch (interaction.commandName) {
@@ -66,33 +64,33 @@ class ClickMenu extends Event {
 
 				// translate message to server language
 				try {
-					const bar = await translate(message.content, { to: guild.settings.Language.split('-')[0] });
-					interaction.reply({ content: `Translated to \`${bot.languages.find(lan => lan.name == guild.settings.Language).nativeName}\`: ${bar.text}`,
-						allowedMentions: { parse: [] } });
+					const res = await bot.fetch('info/translate', { text: message.content, lang: bot.languages.find(lan => lan.name == guild.settings.Language).nativeName });
+
+					interaction.reply({
+						content: `Translated to \`${bot.languages.find(lan => lan.name == guild.settings.Language).nativeName}\`: ${res}`,
+						allowedMentions: { parse: [] },
+					});
 				} catch (err) {
-					bot.logger.error(`Command: '${this.help.name}' has error: ${err.message}.`);
+					console.log(err);
+					bot.logger.error(`Command: 'Translate' has error: ${err.message}.`);
 					interaction.reply({ embeds: [channel.error('misc:ERROR_MESSAGE', { ERROR: err.message }, true)], ephemeral: true });
 				}
 				break;
 			}
 			case 'OCR': {
-			// fetch message and check if message has attachments
+				await interaction.deferReply();
+
+				// fetch message and check if message has attachments
 				const message = await channel.messages.fetch(interaction.targetId);
-				if (!message.attachments.first()?.url) return interaction.reply({ embeds: [channel.error('events/custom:NO_ATTACH', {}, true)], ephemeral: true });
+				if (!message.attachments.first()?.url) return interaction.followUp({ embeds: [channel.error('events/custom:NO_ATTACH', {}, true)], ephemeral: true });
 
 				// Get text from image
-				const res = await optiic.process({
-					image: message.attachments.first().url,
-					mode: 'ocr',
-				});
+				const res = await bot.fetch('misc/get-text', { url: message.attachments.first().url });
 
 				// Make sure text was actually retrieved
-				if (!res.text) {
-					interaction.reply({ embeds: [channel.error('events/custom:NO_TEXT_FROM_ATTACH', {}, true)], ephemeral: true });
-				} else {
-					interaction.reply({ content: `Text from image: ${res.text}` });
-				}
-				break;
+				if (!res) return interaction.followUp({ embeds: [channel.error('events/custom:NO_TEXT_FROM_ATTACH', {}, true)], ephemeral: true });
+
+				return interaction.followUp({ content: `Text from image: ${res}` });
 			}
 			case 'Add to Queue': {
 				// Only allow this to show in server channels
@@ -110,6 +108,26 @@ class ClickMenu extends Event {
 
 				bot.commands.get('screenshot').reply(bot, interaction, channel, message);
 				break;
+			}
+			case 'Report': {
+				const type = interaction.commandType == 3 ? 'message' : 'user';
+				const modal = new ModalBuilder()
+					.setCustomId(`type_${interaction.commandType == 3 ? `message_${interaction.targetMessage.id}` : `user_${interaction.targetUser.id}`}`)
+					.setTitle(`Reporting ${type}`)
+					.addComponents(
+						new ActionRowBuilder()
+							.addComponents(
+								new TextInputBuilder()
+									.setCustomId('reportReason')
+									.setLabel(`Reason for reporting ${type}:`)
+									.setStyle(TextInputStyle.Paragraph)
+									.setRequired(true)
+									.setMaxLength(1024),
+							),
+					);
+
+				// Show the modal to the user
+				return interaction.showModal(modal);
 			}
 			default:
 				interaction.reply({ content: 'Something went wrong' });

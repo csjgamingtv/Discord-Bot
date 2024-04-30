@@ -20,6 +20,10 @@ class InteractionCreate extends Event {
 	 * @readonly
 	*/
 	async run(bot, interaction) {
+		const channel = bot.channels.cache.get(interaction.channelId);
+
+		// Make sure user is not on banned list
+		if (interaction.user.cmdBanned && !interaction.isAutocomplete()) return interaction.reply({ embeds: [channel.error('events/message:BANNED_USER', null, true)] });
 
 		// Check if it's message context menu
 		if (interaction.isMessageContextMenuCommand() || interaction.isUserContextMenuCommand()) return bot.emit('clickMenu', interaction);
@@ -32,6 +36,12 @@ class InteractionCreate extends Event {
 
 		// Check if it's a slash command
 		if (interaction.isCommand()) return bot.emit('slashCreate', interaction);
+
+		// Check if it's a modal submitted
+		if (interaction.isModalSubmit()) return bot.emit('modalSubmit', interaction);
+
+		// Check if it's a select menu submit
+		if (interaction.isStringSelectMenu()) return bot.emit('SelectMenuSubmit', interaction);
 	}
 }
 

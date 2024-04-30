@@ -28,7 +28,7 @@ class SlashCreate extends Event {
 
 		// Check to see if the command is being run in a blacklisted channel
 		if ((guild.settings.CommandChannelToggle) && (guild.settings.CommandChannels.includes(channel.id))) {
-			return interaction.reply({ embeds: [channel.error('events/message:BLACKLISTED_CHANNEL', { USER: member.user.tag }, true)], ephermal: true });
+			return interaction.reply({ embeds: [channel.error('events/message:BLACKLISTED_CHANNEL', { USER: member.user.displayName }, true)], ephermal: true });
 		}
 
 		// Make sure NSFW commands are only being run in a NSFW channel
@@ -69,6 +69,11 @@ class SlashCreate extends Event {
 			return interaction.reply({ embeds: [channel.error('misc:USER_PERMISSION', { PERMISSIONS: perms.toArray().map((p) => bot.translate(`permissions:${p}`)).join(', ') }, true)], ephemeral: true });
 		}
 
+		// Make sure user does not have access to ownerOnly commands
+		if (cmd.conf.ownerOnly && !bot.config.ownerID.includes(interaction.user.id)) {
+			return interaction.reply({ content: 'Nice try', ephemeral: true });
+		}
+
 		// Check to see if user is in 'cooldown'
 		if (!bot.cooldowns.has(cmd.help.name)) {
 			bot.cooldowns.set(cmd.help.name, new Collection());
@@ -88,11 +93,11 @@ class SlashCreate extends Event {
 		}
 
 		// Run slash command
-		if (bot.config.debug) bot.logger.debug(`Interaction: ${interaction.commandName} was ran by ${interaction.user.username}.`);
+		if (bot.config.debug) bot.logger.debug(`Interaction: ${interaction.commandName} was ran by ${interaction.user.displayName}.`);
 		setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
 		await cmd.callback(bot, interaction, guild, interaction.options);
 		timestamps.set(interaction.user.id, now);
-		this.commandsUsed++;
+		bot.commandsUsed++;
 	}
 }
 
